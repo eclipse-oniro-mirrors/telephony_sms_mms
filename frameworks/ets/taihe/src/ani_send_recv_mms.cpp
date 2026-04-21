@@ -33,7 +33,6 @@ namespace Telephony {
 namespace {
 const std::string SMS_PROFILE_URI = "datashare:///com.ohos.smsmmsability";
 const bool STORE_MMS_PDU_TO_FILE = false;
-std::shared_ptr<DataShare::DataShareHelper> g_datashareHelper = nullptr;
 constexpr static uint32_t WAIT_PDN_TOGGLE_TIME = 3000;
 } // namespace
 std::mutex AniSendRecvMms::downloadCtx_;
@@ -151,13 +150,13 @@ static int32_t NativeSendMms(uintptr_t context, MmsContext &mmsContext)
             return TELEPHONY_ERR_ARGUMENT_INVALID;
         }
 
-        g_datashareHelper = CreateDataShareHelper(reinterpret_cast<ani_object>(context));
-        if (g_datashareHelper == nullptr) {
-            TELEPHONY_LOGE("g_datashareHelper is nullptr");
+        auto datashareHelper = CreateDataShareHelper(reinterpret_cast<ani_object>(context));
+        if (datashareHelper == nullptr) {
+            TELEPHONY_LOGE("datashareHelper is nullptr");
             return TELEPHONY_ERR_LOCAL_PTR_NULL;
         }
         AniMmsPduHelper helper;
-        helper.SetDataShareHelper(g_datashareHelper);
+        helper.SetDataShareHelper(datashareHelper);
         helper.SetPduFileName(pduFileName);
         if (!helper.Run(StoreSendMmsPduToDataBase, helper)) {
             TELEPHONY_LOGE("StoreMmsPdu fail");
@@ -256,14 +255,14 @@ void GetMmsPduFromDataBase(AniMmsPduHelper &helper) __attribute__((no_sanitize("
 }
 
 static int32_t DownloadExceptionCase(MmsContext &context,
-    std::shared_ptr<OHOS::DataShare::DataShareHelper> g_datashareHelper)
+    std::shared_ptr<OHOS::DataShare::DataShareHelper> datashareHelper)
 {
     if (!TelephonyPermission::CheckCallerIsSystemApp()) {
         TELEPHONY_LOGE("Non-system applications use system APIs!");
         return TELEPHONY_ERR_ILLEGAL_USE_OF_SYSTEM_API;
     }
-    if (g_datashareHelper == nullptr) {
-        TELEPHONY_LOGE("g_datashareHelper is nullptr");
+    if (datashareHelper == nullptr) {
+        TELEPHONY_LOGE("datashareHelper is nullptr");
         return TELEPHONY_ERR_LOCAL_PTR_NULL;
     }
     std::string fileName = NapiUtil::ToUtf8(context.data);
@@ -301,15 +300,15 @@ void DecreaseReqCount()
 static int32_t NativeDownloadMms(uintptr_t context, struct MmsContext &mmsContext)
 {
     if (!STORE_MMS_PDU_TO_FILE) {
-        g_datashareHelper = CreateDataShareHelper(reinterpret_cast<ani_object>(context));
-        if (!g_datashareHelper) {
-            TELEPHONY_LOGE("g_datashareHelper is null");
+        auto datashareHelper = CreateDataShareHelper(reinterpret_cast<ani_object>(context));
+        if (!datashareHelper) {
+            TELEPHONY_LOGE("datashareHelper is null");
             return TELEPHONY_ERR_LOCAL_PTR_NULL;
         }
     }
 
-    auto errorCode = DownloadExceptionCase(mmsContext, g_datashareHelper);
-    if (!DownloadExceptionCase(mmsContext, g_datashareHelper)) {
+    auto errorCode = DownloadExceptionCase(mmsContext, datashareHelper);
+    if (!DownloadExceptionCase(mmsContext, datashareHelper)) {
         TELEPHONY_LOGE("Exception case");
         return errorCode;
     }
@@ -328,7 +327,7 @@ static int32_t NativeDownloadMms(uintptr_t context, struct MmsContext &mmsContex
     if (errorCode == TELEPHONY_ERR_SUCCESS) {
         if (!STORE_MMS_PDU_TO_FILE) {
             AniMmsPduHelper helper;
-            helper.SetDataShareHelper(g_datashareHelper);
+            helper.SetDataShareHelper(datashareHelper);
             helper.SetDbUrl(NapiUtil::ToUtf8(dbUrls));
             helper.SetStoreFileName(NapiUtil::ToUtf8(mmsContext.data));
             if (!helper.Run(GetMmsPduFromDataBase, helper)) {

@@ -62,6 +62,9 @@ bool AniMmsPdu::InsertMmsPdu(AniMmsPduHelper &pduHelper, const std::string &mmsP
         return false;
     }
     Uri uri(SMS_PROFILE_MMS_PDU_URI);
+    if (mmsPdu.size() > MMS_PDU_MAX_SIZE) {
+        return false;
+    }
     std::vector<std::string> mmsPdus = SplitPdu(mmsPdu);
     std::string dbUrl;
     for (std::string mmsPdu : mmsPdus) {

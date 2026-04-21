@@ -33,6 +33,9 @@ std::string MmsQuotedPrintable::Encode(const std::string &input)
     const unsigned char equalChar = 61;
     const char hex[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
     std::string codeString = "";
+    if (input.size() > MMS_PDU_MAX_SIZE) {
+        return codeString;
+    }
     for (auto byte : input) {
         if ((byte >= asciiMin && byte < equalChar) || (byte > equalChar && byte <= assciiMax)) {
             codeString += byte;
