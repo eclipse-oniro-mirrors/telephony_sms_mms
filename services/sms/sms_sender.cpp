@@ -442,6 +442,7 @@ void SmsSender::SetNetworkId(std::optional<int32_t> &id)
 void SmsSender::OnRilAdapterHostDied()
 {
     std::shared_ptr<SmsSendIndexer> smsIndexer = nullptr;
+    std::lock_guard<std::mutex> guard(sendCacheMapMutex_);
     for (auto it = sendCacheMap_.begin(); it != sendCacheMap_.end(); ++it) {
         smsIndexer = it->second;
         if (smsIndexer == nullptr || smsIndexer->GetIsFailure()) {
