@@ -16,6 +16,7 @@
 #ifndef SMS_RECEIVE_HANDLER_H
 #define SMS_RECEIVE_HANDLER_H
 
+#include <queue>
 #include <vector>
 
 #include "tel_ril_sms_parcel.h"
@@ -104,6 +105,7 @@ private:
     std::mutex mutexRunningLock_;
     bool alreadySendEvent_ = false;
     uint8_t reconnectDataShareCount_ = 0;
+    std::queue<std::shared_ptr<SmsBaseMessage>> smsBaseMessageQueue_{};
 };
 } // namespace Telephony
 } // namespace OHOS
