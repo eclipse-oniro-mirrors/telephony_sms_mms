@@ -87,6 +87,9 @@ HWTEST_F(MmsReceiveGtest, MmsReceiveManagerTest_0001, Function | MediumTest | Le
 
     mmsReceiverManager->Init();
     stata = mmsReceiverManager->DownloadMms(mmsc, data, ua, uaprof);
+    EXPECT_EQ(stata, TELEPHONY_ERR_MMS_FAIL_HTTP_ERROR);
+    mmsc = u"http://example.com";
+    stata = mmsReceiverManager->DownloadMms(mmsc, data, ua, uaprof);
     EXPECT_EQ(stata, TELEPHONY_ERR_MMS_FAIL_DATA_NETWORK_ERROR);
 }
 
@@ -177,6 +180,9 @@ HWTEST_F(MmsReceiveGtest, MmsMmsReceiveTest_0001, Function | MediumTest | Level1
     std::string data;
     std::string uaprof;
     int32_t ret = mmsReceive->ExecuteDownloadMms(method, url, data, uaprof);
+    EXPECT_EQ(ret, TELEPHONY_ERR_MMS_FAIL_HTTP_ERROR);
+    method = "http://example.com";
+    ret = mmsReceive->ExecuteDownloadMms(method, url, data, uaprof);
     EXPECT_EQ(ret, TELEPHONY_ERR_MMS_FAIL_DATA_NETWORK_ERROR);
 }
 
