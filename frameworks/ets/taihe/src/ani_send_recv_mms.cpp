@@ -303,7 +303,7 @@ static int32_t NativeDownloadMms(uintptr_t context, struct MmsContext &mmsContex
     }
 
     auto errorCode = DownloadExceptionCase(mmsContext, datashareHelper);
-    if (!DownloadExceptionCase(mmsContext, datashareHelper)) {
+    if (errorCode != TELEPHONY_ERR_SUCCESS) {
         TELEPHONY_LOGE("Exception case");
         return errorCode;
     }
