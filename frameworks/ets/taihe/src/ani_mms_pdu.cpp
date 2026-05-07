@@ -19,6 +19,7 @@
 #include "datashare_helper.h"
 #include "datashare_predicates.h"
 #include "telephony_log_wrapper.h"
+#include "sms_constants_utils.h"
 
 namespace OHOS {
 namespace Telephony {
