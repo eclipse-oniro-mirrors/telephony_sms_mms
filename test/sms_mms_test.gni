@@ -199,6 +199,11 @@ sms_mms_external_deps = [
     sms_mms_defines += [ "ABILITY_POWER_SUPPORT" ]
   }
 
+  if (sms_mms_tel_power_mode) {
+    sms_mms_defines += [ "BASE_POWER_IMPROVEMENT_FEATURE" ]
+  }
+
+
   if (is_standard_system) {
     sms_mms_external_deps += [ "init:libbegetutil" ]
   }

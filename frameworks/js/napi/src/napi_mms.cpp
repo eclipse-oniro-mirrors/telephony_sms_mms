@@ -638,7 +638,7 @@ void ParseDecodeMmsParam(napi_env env, napi_value object, DecodeMmsContext &cont
         for (uint32_t i = 0; i < arrayLength; i++) {
             napi_get_element(env, object, i, &elementValue);
             napi_get_value_int32(env, elementValue, &element);
-            context.inBuffer[i] = (char)element;
+            context.inBuffer[i] = static_cast<char>(element);
         }
     }
 }
