@@ -19,6 +19,7 @@
 #include "datashare_helper.h"
 #include "datashare_predicates.h"
 #include "telephony_log_wrapper.h"
+#include "sms_constants_utils.h"
 
 namespace OHOS {
 namespace Telephony {
@@ -57,6 +58,9 @@ void AniMmsPdu::DeleteMmsPdu(AniMmsPduHelper &pduHelper)
 
 bool AniMmsPdu::InsertMmsPdu(AniMmsPduHelper &pduHelper, const std::string &mmsPdu)
 {
+    if (mmsPdu.size() > MMS_PDU_MAX_SIZE) {
+        return false;
+    }
     std::shared_ptr<DataShare::DataShareHelper> datashareHelper = pduHelper.GetDataShareHelper();
     if (datashareHelper == nullptr) {
         return false;
