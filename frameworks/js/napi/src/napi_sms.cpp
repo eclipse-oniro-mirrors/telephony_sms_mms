@@ -284,7 +284,7 @@ static napi_value SendMessage(napi_env env, napi_callback_info info)
     napi_value resourceName = nullptr;
     napi_create_string_utf8(env, "SendMessage", NAPI_AUTO_LENGTH, &resourceName);
     napi_create_async_work(env, nullptr, resourceName, NativeSendMessage, SendMessageCallback,
-        (void *)asyncContext, &(asyncContext->work));
+        static_cast<void *>(asyncContext), &(asyncContext->work));
     napi_queue_async_work_with_qos(env, asyncContext->work, napi_qos_default);
     return NapiUtil::CreateUndefined(env);
 }
@@ -423,7 +423,7 @@ static napi_value CreateMessage(napi_env env, napi_callback_info info)
     for (uint32_t i = 0; i < arrayLength; i++) {
         napi_get_element(env, parameters[0], i, &elementValue);
         napi_get_value_int32(env, elementValue, &element);
-        asyncContext->pdu.push_back((unsigned char)element);
+        asyncContext->pdu.push_back(static_cast<unsigned char>(element));
     }
     TELEPHONY_LOGI("CreateMessage pdu size = %{public}zu", asyncContext->pdu.size());
     if (parameterCount == THREE_PARAMETERS) {

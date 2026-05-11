@@ -97,7 +97,8 @@ uint16_t SmsCommonUtils::Unpack7bitChar(
             }
         }
         if (shift > 0 && srcIdx < dataLen && dstIdx < unpackDataLen) {
-            unpackData[dstIdx] = ((unsigned int)tpdu[srcIdx - 1] >> shift) + (tpdu[srcIdx] << (SMS_BYTE_BIT - shift));
+            unpackData[dstIdx] =
+                (static_cast<unsigned int>(tpdu[srcIdx - 1]) >> shift) + (tpdu[srcIdx] << (SMS_BYTE_BIT - shift));
             unpackData[dstIdx] &= 0x7F;
             shift--;
             if (shift > 0) {
@@ -129,7 +130,8 @@ uint16_t SmsCommonUtils::Unpack7bitCharForCBPdu(
             dstIdx++;
         }
         if (shift > 0 && srcIdx < dataLen && dstIdx < unpackDataLen) {
-            unpackData[dstIdx] = ((unsigned int)tpdu[srcIdx - 1] >> shift) + (tpdu[srcIdx] << (SMS_BYTE_BIT - shift));
+            unpackData[dstIdx] =
+                (static_cast<unsigned int>(tpdu[srcIdx - 1]) >> shift) + (tpdu[srcIdx] << (SMS_BYTE_BIT - shift));
             unpackData[dstIdx] &= 0x7F;
             shift--;
             if (shift > 0) {
