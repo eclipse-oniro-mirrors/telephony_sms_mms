@@ -20,8 +20,8 @@
 
 namespace OHOS {
 namespace Telephony {
-static constexpr const char *APP_SAND_ABSOLUTE_DIR = "/data/app";
-static constexpr const char *APP_SAND_RELATIVE_DIR = "/data/storage";
+static constexpr const char *APP_SAND_ABSOLUTE_DIR = "/data/app/";
+static constexpr const char *APP_SAND_RELATIVE_DIR = "/data/storage/";
 
 MmsBuffer::MmsBuffer()
 {

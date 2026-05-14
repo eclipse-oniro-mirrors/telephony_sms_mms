@@ -58,6 +58,7 @@ ohos_fuzztest("SmsRecvItemFuzzTest") {
     "protobuf:protobuf",
     "safwk:system_ability_fwk",
     "telephony_data:tel_telephony_data",
+    "icu:shared_icuuc",
   ]
   defines = [
     "TELEPHONY_LOG_TAG = \"SmsMmsFuzzTest\"",
