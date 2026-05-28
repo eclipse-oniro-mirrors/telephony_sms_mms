@@ -28,8 +28,8 @@ const std::string ENCODE_BINARY = "binary";
 const std::string ENCODE_BASE64 = "base64";
 const std::string ENCODE_QUOTED_PRINTABLE = "quoted-printable";
 using namespace std;
-static constexpr const char *APP_SAND_ABSOLUTE_DIR = "/data/app";
-static constexpr const char *APP_SAND_RELATIVE_DIR = "/data/storage";
+static constexpr const char *APP_SAND_ABSOLUTE_DIR = "/data/app/";
+static constexpr const char *APP_SAND_RELATIVE_DIR = "/data/storage/";
 
 MmsBodyPart::MmsBodyPart() : headerLen_(0), bodyLen_(0) {}
 
