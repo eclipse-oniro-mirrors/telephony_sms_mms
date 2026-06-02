@@ -73,6 +73,7 @@ void SmsGtest::SetUp() {}
 
 void SmsGtest::TearDown() {}
 
+auto smsReceiveHandler = std::make_shared<GsmSmsReceiveHandler>(0);
 const int32_t DEFAULT_SIM_SLOT_ID_1 = 1;
 const std::string DES_ADDR = "10086";
 const std::string TEXT_SMS_CONTENT = "hello world";
@@ -959,7 +960,6 @@ HWTEST_F(SmsGtest, SendTextMessage_0003, Function | MediumTest | Level2)
 void ReceiveSmsTestFunc(SmsMmsTestHelper &helper)
 {
     AccessMmsToken token;
-    auto smsReceiveHandler = std::make_shared<GsmSmsReceiveHandler>(helper.slotId);
     auto message = std::make_shared<SmsMessageInfo>();
     message->indicationType = MESSAGE_TYPE;
     message->size = SMS_PDU_LEN;
