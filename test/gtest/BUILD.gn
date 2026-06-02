@@ -116,10 +116,15 @@ template("unittest_suite") {
 
 foreach(source, test_sources) {
   name = get_path_info(source, "name")
-  unittest_suite("unittest_${name}") {
+  if (source == "zero_branch_sms_part_test.cpp") {
+    target_name = "tel_sms_mms_gtest"
+  } else {
+    target_name  = "unittest_${name}"
+  }
+  unittest_suite(target_name) {
     sources = [ source ]
   }
-  unittest_targets += [ ":unittest_$name" ]
+  unittest_targets += [ ":${target_name}" ]
 }
 
 group("unittest") {
