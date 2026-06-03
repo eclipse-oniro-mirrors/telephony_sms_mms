@@ -122,8 +122,8 @@ void GsmSmsSender::TextBasedSmsSplitDelivery(const std::string &desAddr, const s
             concat.totalSeg = static_cast<uint16_t>(cellsInfosSize);
             concat.seqNum = static_cast<uint16_t>(i + 1);
             indexer->SetSmsConcat(concat);
-            headerCnt += gsmSmsMessage.SetHeaderConcat(headerCnt, concat);
             concat.is8Bits = true;
+            headerCnt += gsmSmsMessage.SetHeaderConcat(headerCnt, concat);
         }
         /* Set User Data Header for Alternate Reply Address */
         headerCnt += gsmSmsMessage.SetHeaderReply(headerCnt);
