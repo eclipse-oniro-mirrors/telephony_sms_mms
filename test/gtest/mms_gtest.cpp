@@ -86,6 +86,7 @@ void MmsGtest::SetUp() {}
 
 void MmsGtest::TearDown() {}
 
+auto smsReceiveHandler = std::make_shared<GsmSmsReceiveHandler>(0);
 const int32_t DEFAULT_SIM_SLOT_ID_1 = 1;
 const uint16_t MESSAGE_TYPE = 4;
 const uint16_t WAPPUSH_PDU_LEN = 164;
@@ -142,7 +143,6 @@ sptr<ISmsServiceInterface> MmsGtest::GetProxy()
 void ReceiveWapPushTestFunc(SmsMmsTestHelper &helper)
 {
     AccessMmsToken token;
-    auto smsReceiveHandler = std::make_shared<GsmSmsReceiveHandler>(helper.slotId);
     auto message = std::make_shared<SmsMessageInfo>();
     message->indicationType = MESSAGE_TYPE;
     message->size = WAPPUSH_PDU_LEN;
