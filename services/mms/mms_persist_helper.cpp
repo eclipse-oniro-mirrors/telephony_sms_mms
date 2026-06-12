@@ -188,7 +188,21 @@ bool MmsPersistHelper::QueryMmsPdu(const std::string &dbUrl)
         resultSet->GoToFirstRow();
         resultSet->GetColumnIndex(PDU_CONTENT, columnIndex);
         resultSet->GetBlob(columnIndex, blobValue);
+        // LCOV_EXCL_START
+        if (blobValue.empty()) {
+            TELEPHONY_LOGE("blobValue is empty, pdu_content may be NULL");
+            resultSet->Close();
+            helper->Release();
+            return false;
+        }
         blobValue.pop_back();
+        if (blobValue.size() < SLIDE_STEP) {
+            TELEPHONY_LOGE("blobValue too small after pop_back");
+            resultSet->Close();
+            helper->Release();
+            return false;
+        }
+        // LCOV_EXCL_STOP
         for (size_t i = 0; i + 1 < blobValue.size(); i = i + SLIDE_STEP) {
             char pduChar = (blobValue[i] & HEX_VALUE_0F) | (blobValue[i + 1] & HEX_VALUE_F0);
             mmsPdu += static_cast<char>(pduChar);
