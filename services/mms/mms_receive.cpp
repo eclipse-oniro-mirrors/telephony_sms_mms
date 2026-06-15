@@ -17,7 +17,6 @@
 
 #include "data_request.h"
 #include "telephony_log_wrapper.h"
-#include <regex>
 
 namespace OHOS {
 namespace Telephony {
@@ -34,9 +33,6 @@ MmsReceive::~MmsReceive() {}
 int32_t MmsReceive::ExecuteDownloadMms(
     const std::string &contentUrl, std::string &pduDir, const std::string &ua, const std::string &uaprof)
 {
-    if (!regex_match(contentUrl, std::regex("^http(s)?:\\/\\/.+"))) {
-        return TELEPHONY_ERR_MMS_FAIL_HTTP_ERROR;
-    }
     auto mmsNetworkMgr = std::make_shared<MmsNetworkManager>();
     if (mmsNetworkMgr == nullptr) {
         TELEPHONY_LOGE("mmsNetworkMgr_ is nullptr");
@@ -44,6 +40,11 @@ int32_t MmsReceive::ExecuteDownloadMms(
     }
 
     std::unique_lock<std::mutex> lock(downloadMmsMutex_);
+    /*
+     * SSRF攻击，需要借助服务端转发，mmsclient是彩信的SDK，应用如果想要发起SSRF攻击，访问某个file://，
+     * 可以完全不用sdk，直接发包。在客户端进行拦截和校验url，完全没有必要。SSRF防御是要在服务端做防御的。
+     * 客户端防御没有任何意义。如果应用搭建了一个file服务器想要访问。sdk不应进行限制。
+     */
     return ExecuteMms(DOWNLOAD_METHOD, mmsNetworkMgr, contentUrl, pduDir, ua, uaprof);
 }
 } // namespace Telephony
