@@ -566,8 +566,6 @@ static napi_value GetDefaultSmsSlotId(napi_env env, napi_callback_info info)
     napi_get_cb_info(env, info, &parameterCount, parameters, &thisVar, &data);
     NAPI_ASSERT(env, MatchGetDefaultSmsSlotIdParameters(env, parameters, parameterCount), "type mismatch");
     auto context = std::make_unique<GetDefaultSmsSlotIdContext>().release();
-    napi_status statusValue = napi_get_value_int32(env, parameters[0], &context->defaultSmsSlotId);
-    TELEPHONY_LOGI("GetDefaultSmsSlotId statusValue = %{private}d", statusValue);
     if (parameterCount == 1) {
         napi_create_reference(env, parameters[0], DEFAULT_REF_COUNT, &context->callbackRef);
     }
@@ -626,8 +624,6 @@ static napi_value GetDefaultSmsSimId(napi_env env, napi_callback_info info)
         return nullptr;
     }
     auto context = std::make_unique<GetDefaultSmsSimIdContext>().release();
-    napi_status statusValue = napi_get_value_int32(env, parameters[0], &context->defaultSmsSimId);
-    TELEPHONY_LOGI("statusValue = %{private}d", statusValue);
     if (parameterCount == 1) {
         napi_create_reference(env, parameters[0], DEFAULT_REF_COUNT, &context->callbackRef);
     }
@@ -1461,7 +1457,7 @@ static napi_value SplitMessage(napi_env env, napi_callback_info info)
     context->content = NapiUtil::Get64StringFromValue(env, parameters[0]);
     TELEPHONY_LOGD("napi_sms splitMessage context->content = %{private}s", context->content.c_str());
     if (parameterCount == TWO_PARAMETERS) {
-        napi_create_reference(env, parameters[1], MAX_TEXT_SHORT_MESSAGE_LENGTH, &context->callbackRef);
+        napi_create_reference(env, parameters[1], DEFAULT_REF_COUNT, &context->callbackRef);
     }
     napi_value result =
         NapiUtil::HandleAsyncWork(env, context, "SplitMessage", NativeSplitMessage, SplitMessageCallback);
