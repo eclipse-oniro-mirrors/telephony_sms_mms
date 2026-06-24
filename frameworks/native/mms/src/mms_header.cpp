@@ -677,7 +677,7 @@ bool MmsHeader::DecodeFieldLongValue(uint8_t fieldId, MmsDecodeBuffer &buff, int
         TELEPHONY_LOGE("The fieldId[%{public}d] MmsHeader DecodeLongInteger fail.", fieldId);
         return false;
     }
-    longValueMap_[fieldId] = static_cast<int64_t>value;
+    longValueMap_[fieldId] = static_cast<int64_t>(value);
     return true;
 }
 
@@ -863,7 +863,7 @@ bool MmsHeader::DecodeFieldIntegerValue(uint8_t fieldId, MmsDecodeBuffer &buff, 
         TELEPHONY_LOGE("The fieldId[%{public}d] MmsHeader DecodeInteger fail.", fieldId);
         return false;
     }
-    longValueMap_[fieldId] = static_cast<int64_t>value;
+    longValueMap_[fieldId] = static_cast<int64_t>(value);
     return true;
 }
 
@@ -912,7 +912,7 @@ bool MmsHeader::DecodeFieldDate(uint8_t fieldId, MmsDecodeBuffer &buff, int32_t 
         long timeStamp = chrono::duration_cast<chrono::seconds>(timePoint).count();
         timeValue += static_cast<uint64_t>(timeStamp);
     }
-    longValueMap_[fieldId] = static_cast<int64_t>timeValue;
+    longValueMap_[fieldId] = static_cast<int64_t>(timeValue);
     return true;
 }
 
@@ -955,7 +955,7 @@ bool MmsHeader::DecodeFieldPreviouslySentDate(uint8_t fieldId, MmsDecodeBuffer &
         TELEPHONY_LOGE("The fieldId[%{public}d] MmsHeader DecodeLongInteger fail.", fieldId);
         return false;
     }
-    longValueMap_[fieldId] = static_cast<int64_t>perviouslySentDate;
+    longValueMap_[fieldId] = static_cast<int64_t>(perviouslySentDate);
     return true;
 }
 
