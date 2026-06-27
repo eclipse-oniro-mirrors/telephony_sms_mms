@@ -362,6 +362,29 @@ void FuzzAttachmentAndBodyPart(const uint8_t *data, size_t size)
     FuzzBodyPartAndHeader(data, size, attachment, text);
 }
 
+void FuzzMmsBodyCodec(const uint8_t *data, size_t size, MmsHeader &header, const std::string &text,
+    MmsEncodeBuffer &encodeBuffer)
+{
+    MmsBody body;
+    MmsBodyPart bodyPart;
+    bodyPart.SetContentId(text);
+    bodyPart.SetContentLocation(text);
+    bodyPart.SetContentType(text);
+    body.AddMmsBodyPart(bodyPart);
+    body.GetBodyPartCount();
+    body.IsBodyPartExist(bodyPart);
+    std::vector<MmsBodyPart> bodyParts;
+    body.GetMmsBodyPart(bodyParts);
+    MmsDecodeBuffer multipartBuffer;
+    WriteDecodeBuffer(multipartBuffer, data, size);
+    body.DecodeMultipart(multipartBuffer);
+    MmsDecodeBuffer bodyBuffer;
+    WriteDecodeBuffer(bodyBuffer, data, size);
+    body.DecodeMmsBody(bodyBuffer, header);
+    body.EncodeMmsHeaderContentType(header, encodeBuffer);
+    body.EncodeMmsBody(encodeBuffer);
+}
+
 void FuzzHeaderAndBody(const uint8_t *data, size_t size)
 {
     std::string text = MakeString(data, std::min(size, MAX_BUFFER_SIZE));
@@ -396,24 +419,7 @@ void FuzzHeaderAndBody(const uint8_t *data, size_t size)
     MmsEncodeBuffer encodeBuffer;
     header.EncodeMmsHeader(encodeBuffer);
 
-    MmsBody body;
-    MmsBodyPart bodyPart;
-    bodyPart.SetContentId(text);
-    bodyPart.SetContentLocation(text);
-    bodyPart.SetContentType(text);
-    body.AddMmsBodyPart(bodyPart);
-    body.GetBodyPartCount();
-    body.IsBodyPartExist(bodyPart);
-    std::vector<MmsBodyPart> bodyParts;
-    body.GetMmsBodyPart(bodyParts);
-    MmsDecodeBuffer multipartBuffer;
-    WriteDecodeBuffer(multipartBuffer, data, size);
-    body.DecodeMultipart(multipartBuffer);
-    MmsDecodeBuffer bodyBuffer;
-    WriteDecodeBuffer(bodyBuffer, data, size);
-    body.DecodeMmsBody(bodyBuffer, header);
-    body.EncodeMmsHeaderContentType(header, encodeBuffer);
-    body.EncodeMmsBody(encodeBuffer);
+    FuzzMmsBodyCodec(data, size, header, text, encodeBuffer);
 }
 
 void FuzzMmsMsgGetAndCodec(MmsMsg &msg, const uint8_t *data, size_t size, uint8_t field)
