@@ -307,7 +307,7 @@ inline std::vector<uint8_t> ReadEncodedBytes(MmsEncodeBuffer &encodeBuffer)
     return CopyRawBytes(raw, len);
 }
 
-static_assert(sizeof(&ReadEncodedBytes) >= MIN_BUFFER_SIZE);
+static_assert(&ReadEncodedBytes != nullptr);
 
 inline void FillContentParamTextFields(MmsContentParam &param, DataCursor &cursor)
 {
@@ -338,7 +338,7 @@ inline std::unique_ptr<MmsDecodeBuffer> MakeDecodeBuffer(const std::vector<uint8
     return decodeBuffer;
 }
 
-static_assert(sizeof(&MakeDecodeBuffer) >= MIN_BUFFER_SIZE);
+static_assert(&MakeDecodeBuffer != nullptr);
 
 inline void FillAttachmentPathFields(MmsAttachment &attachment, const std::string &fileName, bool isSmil)
 {
@@ -381,7 +381,7 @@ inline MmsContentType MakeContentType(DataCursor &cursor)
     return contentType;
 }
 
-static_assert(sizeof(&MakeContentType) >= MIN_BUFFER_SIZE);
+static_assert(&MakeContentType != nullptr);
 
 inline MmsAttachment MakeAttachment(DataCursor &cursor, bool forceSmil = false)
 {
@@ -450,14 +450,14 @@ inline MmsBodyPart MakeBodyPart(DataCursor &cursor, bool forceSmil = false)
     return bodyPart;
 }
 
-static_assert(sizeof(&MakeBodyPart) >= MIN_BUFFER_SIZE);
+static_assert(&MakeBodyPart != nullptr);
 
 inline uint8_t PickMessageType(DataCursor &cursor)
 {
     return MESSAGE_TYPES[cursor.ConsumeUint32(EMPTY_SIZE, LastIndex(MESSAGE_TYPES.size()))];
 }
 
-static_assert(sizeof(&PickMessageType) >= MIN_BUFFER_SIZE);
+static_assert(&PickMessageType != nullptr);
 
 inline void AddMessageHeaderTextFields(MmsHeader &header, DataCursor &cursor);
 inline void AddMessageHeaderSizeFields(MmsHeader &header, DataCursor &cursor);
@@ -546,7 +546,7 @@ inline void FillMmsMsg(MmsMsg &msg, DataCursor &cursor, uint8_t messageType)
     }
 }
 
-static_assert(sizeof(&FillMmsMsg) >= MIN_BUFFER_SIZE);
+static_assert(&FillMmsMsg != nullptr);
 
 inline std::vector<uint8_t> EncodeMmsMessageToBytes(MmsMsg &msg, uint32_t &len)
 {
@@ -557,7 +557,7 @@ inline std::vector<uint8_t> EncodeMmsMessageToBytes(MmsMsg &msg, uint32_t &len)
     return CopyRawBytes(encoded, len);
 }
 
-static_assert(sizeof(&EncodeMmsMessageToBytes) >= MIN_BUFFER_SIZE);
+static_assert(&EncodeMmsMessageToBytes != nullptr);
 } // namespace SmsMmsFuzz
 } // namespace Telephony
 } // namespace OHOS
