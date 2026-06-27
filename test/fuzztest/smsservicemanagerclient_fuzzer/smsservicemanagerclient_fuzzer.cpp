@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "addsmstoken_fuzzer.h"
+#include "securec.h"
 #include "sms_service_manager_client.h"
 #include "string_utils.h"
 
@@ -51,7 +52,10 @@ uint32_t MakeUint32(const uint8_t *data, size_t size)
     uint32_t value = 0;
     size_t copyLen = std::min(size, sizeof(value));
     if (copyLen > 0) {
-        std::memcpy(&value, data, copyLen);
+        errno_t err = memcpy_s(&value, sizeof(value), data, copyLen);
+        if (err != EOK) {
+            return 0;
+        }
     }
     return value;
 }

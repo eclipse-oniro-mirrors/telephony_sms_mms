@@ -49,6 +49,8 @@ constexpr uint8_t DTMF_CHAR_C = 0x0C;
 constexpr uint32_t CHARSET_MOD = 0x800;
 constexpr uint32_t CODING_NATIONAL_MOD = 4;
 constexpr uint32_t DATA_CODING_SCHEME_MOD = static_cast<uint32_t>(DATA_CODING_ASCII7BIT) + 1;
+constexpr size_t BOOL_MOD = 2;
+constexpr size_t LOCKING_SHIFT_MOD = 3;
 static_assert(DATA_CODING_SCHEME_MOD > 0, "Data coding scheme modulo must not be zero");
 
 std::string MakeString(const uint8_t *data, size_t size)
@@ -184,8 +186,8 @@ void FuzzTextCoder(const uint8_t *data, size_t size)
     textCoder.GsmUtf8ToAuto(dest.data(), maxLength, source.data(), srcLength, scheme, nationalType, langId);
 
     MsgLangInfo langInfo;
-    langInfo.bSingleShift = (size % 2) == 0;
-    langInfo.bLockingShift = (size % 3) == 0;
+    langInfo.bSingleShift = (size % BOOL_MOD) == 0;
+    langInfo.bLockingShift = (size % LOCKING_SHIFT_MOD) == 0;
     langInfo.singleLang = static_cast<MSG_LANGUAGE_ID_T>(size);
     langInfo.lockingLang = static_cast<MSG_LANGUAGE_ID_T>(size >> 1);
     textCoder.Gsm7bitToUtf8(dest.data(), maxLength, source.data(), srcLength, langInfo);

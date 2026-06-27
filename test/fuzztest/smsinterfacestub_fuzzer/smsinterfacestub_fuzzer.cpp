@@ -28,6 +28,7 @@
 #include "send_short_message_callback_stub.h"
 #include "sms_interface_stub.h"
 #include "sms_mms_errors.h"
+#include "securec.h"
 #include "sms_service_ipc_interface_code.h"
 #include "string_utils.h"
 #include "telephony_errors.h"
@@ -53,8 +54,11 @@ constexpr char ENCODED_DEST[] = "encoded";
 constexpr char SMSC_ADDRESS[] = "+8613800000000";
 constexpr char IMS_FORMAT[] = "3gpp";
 
+// FAKE_STUB_G.FUN_01_SUPPRESS_START
 class FakeSmsInterfaceStub : public SmsInterfaceStub {
 public:
+    // The following overrides implement the SmsInterfaceStub interface.
+    // Parameter counts are dictated by the base class and cannot be reduced.
     int32_t SendMessage(int32_t slotId, const std::u16string desAddr, const std::u16string scAddr,
         const std::u16string text, const sptr<ISendShortMessageCallback> &sendCallback,
         const sptr<IDeliveryShortMessageCallback> &deliverCallback, bool isMmsApp = true) override
@@ -206,6 +210,7 @@ public:
 
     int32_t SendMms(int32_t slotId, const std::u16string &mmsc, const std::u16string &data,
         const std::u16string &ua, const std::u16string &uaprof, int64_t &time, bool isMmsApp = false) override
+    { // FAKE_STUB_G.FUN_01_SUPPRESS_END
     {
         return TELEPHONY_ERR_SUCCESS;
     }
@@ -233,7 +238,10 @@ uint32_t MakeUint32(const uint8_t *data, size_t size)
     uint32_t value = 0;
     size_t copyLen = std::min(size, sizeof(value));
     if (copyLen > 0) {
-        std::memcpy(&value, data, copyLen);
+        errno_t err = memcpy_s(&value, sizeof(value), data, copyLen);
+        if (err != EOK) {
+            return 0;
+        }
     }
     return value;
 }
@@ -248,7 +256,10 @@ int64_t MakeInt64(const uint8_t *data, size_t size)
     int64_t value = 0;
     size_t copyLen = std::min(size, sizeof(value));
     if (copyLen > 0) {
-        std::memcpy(&value, data, copyLen);
+        errno_t err = memcpy_s(&value, sizeof(value), data, copyLen);
+        if (err != EOK) {
+            return 0;
+        }
     }
     return value;
 }
@@ -311,6 +322,9 @@ void WriteSimMessageParcel(MessageParcel &parcel, const std::u16string &text, ui
 
 void WriteSetCbConfigListParcel(MessageParcel &parcel, const uint8_t *data, size_t size, int32_t listSize)
 {
+    if (size == 0) {
+        return;
+    }
     WriteDescriptor(parcel);
     parcel.WriteInt32(VALID_SLOT_ID);
     parcel.WriteInt32(listSize);
@@ -318,6 +332,29 @@ void WriteSetCbConfigListParcel(MessageParcel &parcel, const uint8_t *data, size
         parcel.WriteInt32(static_cast<int32_t>(data[index % size]));
     }
     parcel.WriteInt32(MakeInt32(data, size));
+}
+
+void WriteUpdateSimOrSetCbParcel(MessageParcel &parcel, const uint8_t *data, size_t size,
+    const std::u16string &text, SmsServiceInterfaceCode code)
+{
+    switch (code) {
+        case SmsServiceInterfaceCode::UPDATE_SIM_MESSAGE:
+            parcel.WriteInt32(VALID_SLOT_ID);
+            parcel.WriteUint32(MakeUint32(data, size));
+            parcel.WriteUint32(MakeUint32(data, size) % SIM_STATUS_MOD);
+            parcel.WriteString16(text);
+            parcel.WriteString16(text);
+            break;
+        case SmsServiceInterfaceCode::SET_CB_CONFIG:
+            parcel.WriteInt32(VALID_SLOT_ID);
+            parcel.WriteBool((size % ENABLE_MOD) == 0);
+            parcel.WriteUint32(MakeUint32(data, size));
+            parcel.WriteUint32(MakeUint32(data, size) + static_cast<uint32_t>(size));
+            parcel.WriteUint8(static_cast<uint8_t>(size));
+            break;
+        default:
+            break;
+    }
 }
 
 void WriteCommonParcel(MessageParcel &parcel, const uint8_t *data, size_t size, const std::u16string &text,
@@ -339,18 +376,8 @@ void WriteCommonParcel(MessageParcel &parcel, const uint8_t *data, size_t size, 
             }
             break;
         case SmsServiceInterfaceCode::UPDATE_SIM_MESSAGE:
-            parcel.WriteInt32(VALID_SLOT_ID);
-            parcel.WriteUint32(MakeUint32(data, size));
-            parcel.WriteUint32(MakeUint32(data, size) % SIM_STATUS_MOD);
-            parcel.WriteString16(text);
-            parcel.WriteString16(text);
-            break;
         case SmsServiceInterfaceCode::SET_CB_CONFIG:
-            parcel.WriteInt32(VALID_SLOT_ID);
-            parcel.WriteBool((size % ENABLE_MOD) == 0);
-            parcel.WriteUint32(MakeUint32(data, size));
-            parcel.WriteUint32(MakeUint32(data, size) + static_cast<uint32_t>(size));
-            parcel.WriteUint8(static_cast<uint8_t>(size));
+            WriteUpdateSimOrSetCbParcel(parcel, data, size, text, code);
             break;
         case SmsServiceInterfaceCode::SET_IMS_SMS_CONFIG:
         case SmsServiceInterfaceCode::SET_DEFAULT_SMS_SLOT_ID:

@@ -39,6 +39,9 @@ constexpr size_t MIN_SIZE_NUM = 1;
 constexpr size_t MAX_STRING_SIZE = 256;
 constexpr uint32_t UNKNOWN_CODE_OFFSET = 100;
 constexpr int32_t SLOT_COUNT = 2;
+constexpr int32_t SALT_RADIO_FLAG = 1;
+constexpr int32_t SALT_RADIO_SERIAL = 2;
+constexpr int32_t SALT_RADIO_ERROR = 3;
 
 std::string MakeString(const uint8_t *data, size_t size)
 {
@@ -133,9 +136,9 @@ void WriteImsRadioResponseParcel(MessageParcel &parcel, int32_t slotId, const ui
     parcel.WriteInterfaceToken(ImsSmsCallbackStub::GetDescriptor());
     parcel.WriteInt32(slotId);
     parcel.WriteInt32(MakeInt32(data, size));
-    parcel.WriteInt32(MakeInt32WithSalt(data, size, 1));
-    parcel.WriteInt32(MakeInt32WithSalt(data, size, 2));
-    parcel.WriteInt32(MakeInt32WithSalt(data, size, 3));
+    parcel.WriteInt32(MakeInt32WithSalt(data, size, SALT_RADIO_FLAG));
+    parcel.WriteInt32(MakeInt32WithSalt(data, size, SALT_RADIO_SERIAL));
+    parcel.WriteInt32(MakeInt32WithSalt(data, size, SALT_RADIO_ERROR));
 }
 
 void WriteImsSendResultParcel(MessageParcel &parcel, int32_t slotId, const uint8_t *data, size_t size)
@@ -144,7 +147,7 @@ void WriteImsSendResultParcel(MessageParcel &parcel, int32_t slotId, const uint8
     parcel.WriteInt32(slotId);
     parcel.WriteInt32(MakeInt32(data, size));
     parcel.WriteString(MakeString(data, size));
-    parcel.WriteInt32(MakeInt32WithSalt(data, size, 1));
+    parcel.WriteInt32(MakeInt32WithSalt(data, size, SALT_RADIO_FLAG));
     parcel.WriteInt64(MakeInt64(data, size));
 }
 

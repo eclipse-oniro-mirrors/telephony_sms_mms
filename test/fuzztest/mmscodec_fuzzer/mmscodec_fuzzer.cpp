@@ -54,6 +54,7 @@ constexpr uint32_t MMS_MESSAGE_TYPE_COUNT = 24;
 constexpr uint32_t CHARSET_MOD = 0x800;
 constexpr uint8_t MMS_MESSAGE_TYPE_BASE = 128;
 constexpr uint8_t WELL_KNOWN_CONTENT_TYPE_MOD = 0x55;
+constexpr size_t BOOL_MOD = 2;
 
 std::string MakeString(const uint8_t *data, size_t size)
 {
@@ -249,36 +250,10 @@ void FuzzAddressAndEncodeString(const uint8_t *data, size_t size)
     encodeString.EncodeEncodeString(encodeBuffer);
 }
 
-void FuzzAttachmentAndBodyPart(const uint8_t *data, size_t size)
+void FuzzBodyPartAndHeader(const uint8_t *data, size_t size, const MmsAttachment &attachment,
+    const std::string &text)
 {
-    std::string text = MakeString(data, std::min(size, MAX_BUFFER_SIZE));
     uint32_t len = 0;
-    MmsAttachment attachment;
-    attachment.SetAttachmentFilePath(text, size % 2 == 0);
-    attachment.SetContentId(text);
-    attachment.SetContentLocation(text);
-    attachment.SetContentDisposition(text);
-    attachment.SetContentTransferEncoding(text);
-    attachment.SetContentType(text);
-    attachment.SetFileName(text);
-    attachment.SetCharSet(MakeUint32(data, size) % CHARSET_MOD);
-    attachment.SetIsSmilFile(size % 2 == 1);
-    auto dataBuffer = MakeBuffer(data, size, len);
-    if (dataBuffer != nullptr) {
-        attachment.SetDataBuffer(std::move(dataBuffer), len);
-    }
-    attachment.GetAttachmentFilePath();
-    attachment.GetContentId();
-    attachment.GetContentLocation();
-    attachment.GetContentDisposition();
-    attachment.GetContentTransferEncoding();
-    attachment.GetContentType();
-    attachment.GetFileName();
-    attachment.GetCharSet();
-    attachment.IsSmilFile();
-    attachment.GetDataBuffer(len);
-    MmsAttachment copyAttachment(attachment);
-
     MmsBodyPartHeader partHeader;
     partHeader.SetContentId(text);
     partHeader.SetContentLocation(text);
@@ -309,7 +284,7 @@ void FuzzAttachmentAndBodyPart(const uint8_t *data, size_t size)
 
     MmsBodyPart bodyPart;
     bodyPart.SetAttachment(attachment);
-    bodyPart.SetSmilFile(size % 2 == 0);
+    bodyPart.SetSmilFile(size % BOOL_MOD == 0);
     bodyPart.SetContentType(text);
     bodyPart.SetContentId(text);
     bodyPart.SetContentLocation(text);
@@ -331,6 +306,39 @@ void FuzzAttachmentAndBodyPart(const uint8_t *data, size_t size)
     decodeBuffer = MakeDecodeBuffer(data, size);
     bodyPart.DecodePart(decodeBuffer, headerLen);
     bodyPart.EncodeMmsBodyPart(encodeBuffer);
+}
+
+void FuzzAttachmentAndBodyPart(const uint8_t *data, size_t size)
+{
+    std::string text = MakeString(data, std::min(size, MAX_BUFFER_SIZE));
+    uint32_t len = 0;
+    MmsAttachment attachment;
+    attachment.SetAttachmentFilePath(text, size % BOOL_MOD == 0);
+    attachment.SetContentId(text);
+    attachment.SetContentLocation(text);
+    attachment.SetContentDisposition(text);
+    attachment.SetContentTransferEncoding(text);
+    attachment.SetContentType(text);
+    attachment.SetFileName(text);
+    attachment.SetCharSet(MakeUint32(data, size) % CHARSET_MOD);
+    attachment.SetIsSmilFile(size % BOOL_MOD == 1);
+    auto dataBuffer = MakeBuffer(data, size, len);
+    if (dataBuffer != nullptr) {
+        attachment.SetDataBuffer(std::move(dataBuffer), len);
+    }
+    attachment.GetAttachmentFilePath();
+    attachment.GetContentId();
+    attachment.GetContentLocation();
+    attachment.GetContentDisposition();
+    attachment.GetContentTransferEncoding();
+    attachment.GetContentType();
+    attachment.GetFileName();
+    attachment.GetCharSet();
+    attachment.IsSmilFile();
+    attachment.GetDataBuffer(len);
+    MmsAttachment copyAttachment(attachment);
+
+    FuzzBodyPartAndHeader(data, size, attachment, text);
 }
 
 void FuzzHeaderAndBody(const uint8_t *data, size_t size)
@@ -384,6 +392,30 @@ void FuzzHeaderAndBody(const uint8_t *data, size_t size)
     body.EncodeMmsBody(encodeBuffer);
 }
 
+void FuzzMmsMsgGetAndCodec(MmsMsg &msg, const uint8_t *data, size_t size, uint8_t field)
+{
+    std::vector<MmsAttachment> attachments;
+    msg.GetAllAttachment(attachments);
+    msg.GetMmsVersion();
+    msg.GetMmsMessageType();
+    msg.GetMmsTransactionId();
+    msg.GetMmsDate();
+    msg.GetMmsSubject();
+    msg.GetMmsFrom();
+    msg.GetHeaderOctetValue(field);
+    msg.GetHeaderIntegerValue(field);
+    msg.GetHeaderLongValue(field);
+    msg.GetHeaderStringValue(field);
+    msg.GetHeaderContentType();
+    msg.GetHeaderContentTypeStart();
+    uint32_t len = 0;
+    auto buffer = MakeBuffer(data, size, len);
+    if (buffer != nullptr) {
+        msg.DecodeMsg(std::move(buffer), len);
+    }
+    msg.EncodeMsg(len);
+}
+
 void FuzzMmsMsg(const uint8_t *data, size_t size)
 {
     std::string text = MakeString(data, std::min(size, MAX_BUFFER_SIZE));
@@ -418,25 +450,7 @@ void FuzzMmsMsg(const uint8_t *data, size_t size)
         attachment.SetDataBuffer(std::move(buffer), len);
     }
     msg.AddAttachment(attachment);
-    std::vector<MmsAttachment> attachments;
-    msg.GetAllAttachment(attachments);
-    msg.GetMmsVersion();
-    msg.GetMmsMessageType();
-    msg.GetMmsTransactionId();
-    msg.GetMmsDate();
-    msg.GetMmsSubject();
-    msg.GetMmsFrom();
-    msg.GetHeaderOctetValue(field);
-    msg.GetHeaderIntegerValue(field);
-    msg.GetHeaderLongValue(field);
-    msg.GetHeaderStringValue(field);
-    msg.GetHeaderContentType();
-    msg.GetHeaderContentTypeStart();
-    buffer = MakeBuffer(data, size, len);
-    if (buffer != nullptr) {
-        msg.DecodeMsg(std::move(buffer), len);
-    }
-    msg.EncodeMsg(len);
+    FuzzMmsMsgGetAndCodec(msg, data, size, field);
 }
 
 void FuzzUtilityCodecs(const uint8_t *data, size_t size)
