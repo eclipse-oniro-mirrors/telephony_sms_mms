@@ -35,8 +35,8 @@ static void RunMmsBodyPartHeaderFuzz(const uint8_t *data, size_t size)
 {
     SmsMmsFuzz::DataCursor cursor(data, size);
     MmsBodyPartHeader header;
-    header.SetContentId(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(32), "<cid>"));
-    header.SetContentLocation(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(32), "part.txt"));
+    header.SetContentId(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "<cid>"));
+    header.SetContentLocation(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "part.txt"));
     header.SetContentDisposition(SmsMmsFuzz::PickDisposition(cursor));
     header.SetContentTransferEncoding(SmsMmsFuzz::PickTransferEncoding(cursor));
     std::string value;
@@ -54,8 +54,8 @@ static void RunMmsBodyPartHeaderFuzz(const uint8_t *data, size_t size)
     DecodeHeaderBytes(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
 
     std::vector<uint8_t> synthetic = {
-        static_cast<uint8_t>(0x80 | static_cast<uint8_t>(MmsHeaderParam::P_CONTENT_ID)),
-        '"', 'f', 'u', 'z', 'z', 0,
+        static_cast<uint8_t>(SmsMmsFuzz::SHORT_INTEGER_MARK | static_cast<uint8_t>(MmsHeaderParam::P_CONTENT_ID)),
+        '"', 'f', 'u', 'z', 'z', SmsMmsFuzz::ZERO_BYTE,
     };
     DecodeHeaderBytes(synthetic);
     DecodeHeaderBytes(cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE));
@@ -69,5 +69,5 @@ static void RunMmsBodyPartHeaderFuzz(const uint8_t *data, size_t size)
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     OHOS::Telephony::RunMmsBodyPartHeaderFuzz(data, size);
-    return 0;
+    return OHOS::Telephony::SmsMmsFuzz::FUZZER_SUCCESS;
 }

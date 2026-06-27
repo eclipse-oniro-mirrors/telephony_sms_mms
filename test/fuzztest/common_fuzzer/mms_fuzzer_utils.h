@@ -42,6 +42,107 @@ constexpr uint32_t MIN_BUFFER_SIZE = 1;
 constexpr uint32_t MAX_TEXT_SIZE = 96;
 constexpr uint32_t MAX_BINARY_SIZE = 192;
 constexpr uint32_t MAX_PART_COUNT = 4;
+constexpr uint32_t EMPTY_SIZE = 0;
+constexpr int FUZZER_SUCCESS = 0;
+constexpr uint32_t SHORT_TEXT_SIZE = 32;
+constexpr uint32_t MEDIUM_TEXT_SIZE = 48;
+constexpr uint32_t MAX_HEADER_VALUE = 4096;
+constexpr uint32_t MAX_CHARSET_VALUE = 0x1000;
+constexpr uint32_t MAX_MMS_VERSION_VALUE = 0xff;
+constexpr uint32_t MMS_VERSION_MIN_VALUE = 0x10;
+constexpr uint32_t MMS_VERSION_MAX_VALUE = 0x13;
+constexpr uint32_t PRINTABLE_ASCII_RANGE = 95;
+constexpr uint32_t ADDRESS_TYPE_COUNT = 5;
+constexpr uint32_t UINT32_BYTE_COUNT = sizeof(uint32_t);
+constexpr uint32_t UINT64_BYTE_COUNT = sizeof(uint64_t);
+constexpr uint32_t BYTE_BITS = 8;
+constexpr uint8_t BYTE_MASK = 0xffU;
+constexpr uint8_t BOOL_LOW_BIT_MASK = 0x01;
+constexpr uint8_t SHORT_INTEGER_MARK = 0x80;
+constexpr uint8_t SHORT_INTEGER_MASK = 0x7f;
+constexpr uint8_t INVALID_FIELD_ID = 0xff;
+constexpr uint8_t ZERO_BYTE = 0x00;
+constexpr char PRINTABLE_ASCII_FIRST = ' ';
+constexpr char DEFAULT_BUFFER_FILL = 'F';
+constexpr size_t CONTENT_TYPE_COUNT = 8;
+constexpr size_t DISPOSITION_COUNT = 4;
+constexpr size_t TRANSFER_ENCODING_COUNT = 3;
+constexpr size_t CHARSET_COUNT = 7;
+constexpr size_t CONTENT_PARAM_TEXT_FIELD_COUNT = 8;
+constexpr size_t MESSAGE_TYPE_COUNT = 9;
+constexpr size_t FALLBACK_DATA_SIZE = 4;
+
+constexpr std::array<const char *, CONTENT_TYPE_COUNT> CONTENT_TYPES = {
+    "text/plain",
+    "text/html",
+    "image/jpeg",
+    "image/png",
+    "application/smil",
+    "application/vnd.wap.multipart.mixed",
+    "application/vnd.wap.multipart.related",
+    "application/vnd.wap.mms-message",
+};
+
+constexpr std::array<const char *, DISPOSITION_COUNT> DISPOSITIONS = {
+    "from-data",
+    "attachment",
+    "inline",
+    "x-fuzz-disposition",
+};
+
+constexpr std::array<const char *, TRANSFER_ENCODING_COUNT> TRANSFER_ENCODINGS = {
+    "binary",
+    "quoted-printable",
+    "x-fuzz-encoding",
+};
+
+constexpr std::array<uint32_t, CHARSET_COUNT> CHARSETS = {
+    static_cast<uint32_t>(MmsCharSets::UTF_8),
+    static_cast<uint32_t>(MmsCharSets::US_ASCII),
+    static_cast<uint32_t>(MmsCharSets::ISO_8859_1),
+    static_cast<uint32_t>(MmsCharSets::ISO_10646_UCS_2),
+    static_cast<uint32_t>(MmsCharSets::SHIFT_JIS),
+    static_cast<uint32_t>(MmsCharSets::BIG5),
+    EMPTY_SIZE,
+};
+
+constexpr std::array<const char *, ADDRESS_TYPE_COUNT> ADDRESS_TYPES = {
+    "PLMN",
+    "IPv4",
+    "IPv6",
+    "EMAIL",
+    "UNKNOWN",
+};
+
+constexpr std::array<uint8_t, CONTENT_PARAM_TEXT_FIELD_COUNT> CONTENT_PARAM_TEXT_FIELDS = {
+    static_cast<uint8_t>(ContentParam::CT_P_FILENAME),
+    static_cast<uint8_t>(ContentParam::CT_P_FILENAME_VALUE),
+    static_cast<uint8_t>(ContentParam::CT_P_START_VALUE),
+    static_cast<uint8_t>(ContentParam::CT_P_START),
+    static_cast<uint8_t>(ContentParam::CT_P_NAME),
+    static_cast<uint8_t>(ContentParam::CT_P_NAME_VALUE),
+    static_cast<uint8_t>(ContentParam::CT_P_START_INFO),
+    static_cast<uint8_t>(ContentParam::CT_P_START_INFO_VALUE),
+};
+
+constexpr std::array<uint8_t, MESSAGE_TYPE_COUNT> MESSAGE_TYPES = {
+    MMS_MSGTYPE_SEND_REQ,
+    MMS_MSGTYPE_SEND_CONF,
+    MMS_MSGTYPE_NOTIFICATION_IND,
+    MMS_MSGTYPE_NOTIFYRESP_IND,
+    MMS_MSGTYPE_RETRIEVE_CONF,
+    MMS_MSGTYPE_ACKNOWLEDGE_IND,
+    MMS_MSGTYPE_DELIVERY_IND,
+    MMS_MSGTYPE_READ_REC_IND,
+    MMS_MSGTYPE_READ_ORIG_IND,
+};
+
+constexpr std::array<uint8_t, FALLBACK_DATA_SIZE> FALLBACK_BYTES = {
+    static_cast<uint8_t>('F'),
+    static_cast<uint8_t>('U'),
+    static_cast<uint8_t>('Z'),
+    static_cast<uint8_t>('Z'),
+};
 
 class DataCursor {
 public:
@@ -50,54 +151,47 @@ public:
     uint8_t ConsumeByte()
     {
         if (data_ == nullptr || offset_ >= size_) {
-            return static_cast<uint8_t>((size_ + offset_) & 0xffU);
+            return static_cast<uint8_t>((size_ + offset_) & static_cast<size_t>(BYTE_MASK));
         }
         return data_[offset_++];
     }
 
     bool ConsumeBool()
     {
-        return (ConsumeByte() & 1U) != 0;
+        return (ConsumeByte() & BOOL_LOW_BIT_MASK) != EMPTY_SIZE;
     }
 
     uint32_t ConsumeUint32(uint32_t minValue, uint32_t maxValue)
     {
-        uint32_t value = 0;
-        for (uint32_t i = 0; i < sizeof(uint32_t); ++i) {
-            value = (value << BYTE_BITS) | ConsumeByte();
-        }
+        uint32_t value = ConsumeInteger<uint32_t>(UINT32_BYTE_COUNT);
         if (maxValue <= minValue) {
             return minValue;
         }
-        return minValue + (value % (maxValue - minValue + 1));
+        return minValue + (value % (maxValue - minValue + MIN_BUFFER_SIZE));
     }
 
     uint64_t ConsumeUint64()
     {
-        uint64_t value = 0;
-        for (uint32_t i = 0; i < sizeof(uint64_t); ++i) {
-            value = (value << BYTE_BITS) | ConsumeByte();
-        }
-        return value;
+        return ConsumeInteger<uint64_t>(UINT64_BYTE_COUNT);
     }
 
     std::string ConsumeText(uint32_t maxLen)
     {
-        uint32_t len = ConsumeUint32(0, maxLen);
+        uint32_t len = ConsumeUint32(EMPTY_SIZE, maxLen);
         std::string result;
         result.reserve(len);
-        for (uint32_t i = 0; i < len; ++i) {
-            result.push_back(static_cast<char>(' ' + (ConsumeByte() % 95)));
+        for (uint32_t i = EMPTY_SIZE; i < len; ++i) {
+            result.push_back(MakePrintable(ConsumeByte()));
         }
         return result;
     }
 
     std::vector<uint8_t> ConsumeBytes(uint32_t maxLen)
     {
-        uint32_t len = ConsumeUint32(0, maxLen);
+        uint32_t len = ConsumeUint32(EMPTY_SIZE, maxLen);
         std::vector<uint8_t> result;
         result.reserve(len);
-        for (uint32_t i = 0; i < len; ++i) {
+        for (uint32_t i = EMPTY_SIZE; i < len; ++i) {
             result.push_back(ConsumeByte());
         }
         return result;
@@ -106,14 +200,28 @@ public:
     template<typename T, size_t N>
     T Pick(const std::array<T, N> &values)
     {
-        return values[ConsumeUint32(0, static_cast<uint32_t>(N - 1))];
+        return values[ConsumeUint32(EMPTY_SIZE, static_cast<uint32_t>(N - MIN_BUFFER_SIZE))];
     }
 
 private:
-    static constexpr uint32_t BYTE_BITS = 8;
+    template<typename T>
+    T ConsumeInteger(uint32_t byteCount)
+    {
+        T value = static_cast<T>(EMPTY_SIZE);
+        for (uint32_t i = EMPTY_SIZE; i < byteCount; ++i) {
+            value = static_cast<T>((value << BYTE_BITS) | ConsumeByte());
+        }
+        return value;
+    }
+
+    static char MakePrintable(uint8_t value)
+    {
+        return static_cast<char>(PRINTABLE_ASCII_FIRST + (value % PRINTABLE_ASCII_RANGE));
+    }
+
     const uint8_t *data_ = nullptr;
-    size_t size_ = 0;
-    size_t offset_ = 0;
+    size_t size_ = static_cast<size_t>(EMPTY_SIZE);
+    size_t offset_ = static_cast<size_t>(EMPTY_SIZE);
 };
 
 inline std::string NonEmpty(std::string value, const std::string &fallback)
@@ -121,72 +229,39 @@ inline std::string NonEmpty(std::string value, const std::string &fallback)
     return value.empty() ? fallback : value;
 }
 
+inline uint32_t LastIndex(size_t size)
+{
+    return static_cast<uint32_t>(size - MIN_BUFFER_SIZE);
+}
+
 inline std::string PickContentType(DataCursor &cursor)
 {
-    static constexpr std::array<const char *, 8> CONTENT_TYPES = {
-        "text/plain",
-        "text/html",
-        "image/jpeg",
-        "image/png",
-        "application/smil",
-        "application/vnd.wap.multipart.mixed",
-        "application/vnd.wap.multipart.related",
-        "application/vnd.wap.mms-message",
-    };
     if (cursor.ConsumeBool()) {
-        return CONTENT_TYPES[cursor.ConsumeUint32(0, static_cast<uint32_t>(CONTENT_TYPES.size() - 1))];
+        return CONTENT_TYPES[cursor.ConsumeUint32(EMPTY_SIZE, LastIndex(CONTENT_TYPES.size()))];
     }
     return NonEmpty(cursor.ConsumeText(MAX_TEXT_SIZE), "application/octet-stream");
 }
 
 inline std::string PickDisposition(DataCursor &cursor)
 {
-    static constexpr std::array<const char *, 4> DISPOSITIONS = {
-        "from-data",
-        "attachment",
-        "inline",
-        "x-fuzz-disposition",
-    };
-    return DISPOSITIONS[cursor.ConsumeUint32(0, static_cast<uint32_t>(DISPOSITIONS.size() - 1))];
+    return DISPOSITIONS[cursor.ConsumeUint32(EMPTY_SIZE, LastIndex(DISPOSITIONS.size()))];
 }
 
 inline std::string PickTransferEncoding(DataCursor &cursor)
 {
-    static constexpr std::array<const char *, 4> ENCODINGS = {
-        "binary",
-        "base64",
-        "quoted-printable",
-        "x-fuzz-encoding",
-    };
-    return ENCODINGS[cursor.ConsumeUint32(0, static_cast<uint32_t>(ENCODINGS.size() - 1))];
+    return TRANSFER_ENCODINGS[cursor.ConsumeUint32(EMPTY_SIZE, LastIndex(TRANSFER_ENCODINGS.size()))];
 }
 
 inline uint32_t PickCharset(DataCursor &cursor)
 {
-    static constexpr std::array<uint32_t, 7> CHARSETS = {
-        static_cast<uint32_t>(MmsCharSets::UTF_8),
-        static_cast<uint32_t>(MmsCharSets::US_ASCII),
-        static_cast<uint32_t>(MmsCharSets::ISO_8859_1),
-        static_cast<uint32_t>(MmsCharSets::ISO_10646_UCS_2),
-        static_cast<uint32_t>(MmsCharSets::SHIFT_JIS),
-        static_cast<uint32_t>(MmsCharSets::BIG5),
-        0,
-    };
-    return CHARSETS[cursor.ConsumeUint32(0, static_cast<uint32_t>(CHARSETS.size() - 1))];
+    return CHARSETS[cursor.ConsumeUint32(EMPTY_SIZE, LastIndex(CHARSETS.size()))];
 }
 
 inline MmsAddress MakeAddress(DataCursor &cursor)
 {
-    static constexpr std::array<const char *, 5> TYPES = {
-        "PLMN",
-        "IPv4",
-        "IPv6",
-        "EMAIL",
-        "UNKNOWN",
-    };
-    std::string localPart = NonEmpty(cursor.ConsumeText(32), "+8613812345678");
-    std::string address = localPart + "/TYPE=" + TYPES[cursor.ConsumeUint32(0, static_cast<uint32_t>(
-        TYPES.size() - 1))];
+    std::string localPart = NonEmpty(cursor.ConsumeText(SHORT_TEXT_SIZE), "+8613812345678");
+    uint32_t index = cursor.ConsumeUint32(EMPTY_SIZE, LastIndex(ADDRESS_TYPES.size()));
+    std::string address = localPart + "/TYPE=" + ADDRESS_TYPES[index];
     MmsAddress result;
     result.SetMmsAddressString(address, static_cast<MmsCharSets>(PickCharset(cursor)));
     return result;
@@ -196,63 +271,100 @@ inline std::unique_ptr<char[]> MakeCharBuffer(const std::vector<uint8_t> &bytes)
 {
     uint32_t len = std::max<uint32_t>(MIN_BUFFER_SIZE, static_cast<uint32_t>(bytes.size()));
     auto buffer = std::make_unique<char[]>(len);
-    for (uint32_t i = 0; i < len; ++i) {
-        uint8_t value = i < bytes.size() ? bytes[i] : static_cast<uint8_t>('F');
+    for (uint32_t i = EMPTY_SIZE; i < len; ++i) {
+        uint8_t value = i < bytes.size() ? bytes[i] : static_cast<uint8_t>(DEFAULT_BUFFER_FILL);
         buffer[i] = static_cast<char>(value);
     }
     return buffer;
 }
 
-inline std::vector<uint8_t> ReadEncodedBytes(MmsEncodeBuffer &encodeBuffer)
+inline std::vector<uint8_t> CopyRawBytes(const std::unique_ptr<char[]> &raw, uint32_t len)
 {
-    uint32_t len = encodeBuffer.GetCurPosition();
     std::vector<uint8_t> bytes;
-    if (len == 0) {
-        return bytes;
-    }
-    auto raw = encodeBuffer.ReadDataBuffer(0, len);
-    if (raw == nullptr) {
-        return bytes;
-    }
     bytes.reserve(len);
-    for (uint32_t i = 0; i < len; ++i) {
+    for (uint32_t i = EMPTY_SIZE; i < len; ++i) {
         bytes.push_back(static_cast<uint8_t>(raw[i]));
     }
     return bytes;
+}
+
+inline std::unique_ptr<char[]> ReadRawEncodedBytes(MmsEncodeBuffer &encodeBuffer, uint32_t &len)
+{
+    len = encodeBuffer.GetCurPosition();
+    if (len == EMPTY_SIZE) {
+        return nullptr;
+    }
+    return encodeBuffer.ReadDataBuffer(EMPTY_SIZE, len);
+}
+
+inline std::vector<uint8_t> ReadEncodedBytes(MmsEncodeBuffer &encodeBuffer)
+{
+    uint32_t len = EMPTY_SIZE;
+    auto raw = ReadRawEncodedBytes(encodeBuffer, len);
+    if (raw == nullptr) {
+        return {};
+    }
+    return CopyRawBytes(raw, len);
+}
+
+inline void FillContentParamTextFields(MmsContentParam &param, DataCursor &cursor)
+{
+    param.SetCharSet(PickCharset(cursor));
+    param.SetType(PickContentType(cursor));
+    param.SetFileName(NonEmpty(cursor.ConsumeText(SHORT_TEXT_SIZE), "part.txt"));
+    param.SetStart(NonEmpty(cursor.ConsumeText(SHORT_TEXT_SIZE), "<smil>"));
+}
+
+inline void AddContentParamNormalFields(MmsContentParam &param, DataCursor &cursor)
+{
+    uint32_t count = cursor.ConsumeUint32(MIN_BUFFER_SIZE, MAX_PART_COUNT);
+    for (uint32_t i = EMPTY_SIZE; i < count; ++i) {
+        uint8_t field = CONTENT_PARAM_TEXT_FIELDS[cursor.ConsumeUint32(EMPTY_SIZE,
+            LastIndex(CONTENT_PARAM_TEXT_FIELDS.size()))];
+        param.AddNormalField(field, NonEmpty(cursor.ConsumeText(SHORT_TEXT_SIZE), "field"));
+    }
 }
 
 inline std::unique_ptr<MmsDecodeBuffer> MakeDecodeBuffer(const std::vector<uint8_t> &bytes)
 {
     std::vector<uint8_t> payload = bytes;
     if (payload.empty()) {
-        payload.push_back(0);
+        payload.push_back(ZERO_BYTE);
     }
     auto decodeBuffer = std::make_unique<MmsDecodeBuffer>();
     decodeBuffer->WriteDataBuffer(MakeCharBuffer(payload), static_cast<uint32_t>(payload.size()));
     return decodeBuffer;
 }
 
+inline void FillAttachmentPathFields(MmsAttachment &attachment, const std::string &fileName, bool isSmil)
+{
+    attachment.SetAttachmentFilePath("/not_in_app_sandbox/" + fileName, isSmil);
+    attachment.SetFileName(fileName);
+    attachment.SetContentLocation(NonEmpty(fileName, "part.dat"));
+}
+
+inline void FillAttachmentContentFields(MmsAttachment &attachment, DataCursor &cursor)
+{
+    attachment.SetContentId(NonEmpty(cursor.ConsumeText(SHORT_TEXT_SIZE), "part-1"));
+    attachment.SetContentDisposition(PickDisposition(cursor));
+    attachment.SetContentTransferEncoding(PickTransferEncoding(cursor));
+    attachment.SetContentType(PickContentType(cursor));
+    attachment.SetCharSet(PickCharset(cursor));
+}
+
+inline void FillAttachmentData(MmsAttachment &attachment, DataCursor &cursor)
+{
+    std::vector<uint8_t> bytes = cursor.ConsumeBytes(MAX_BINARY_SIZE);
+    if (bytes.empty()) {
+        bytes.push_back(static_cast<uint8_t>('A'));
+    }
+    attachment.SetDataBuffer(MakeCharBuffer(bytes), static_cast<uint32_t>(bytes.size()));
+}
+
 inline void FillContentParam(MmsContentParam &param, DataCursor &cursor)
 {
-    static constexpr std::array<uint8_t, 8> TEXT_FIELDS = {
-        static_cast<uint8_t>(ContentParam::CT_P_FILENAME),
-        static_cast<uint8_t>(ContentParam::CT_P_FILENAME_VALUE),
-        static_cast<uint8_t>(ContentParam::CT_P_START_VALUE),
-        static_cast<uint8_t>(ContentParam::CT_P_START),
-        static_cast<uint8_t>(ContentParam::CT_P_NAME),
-        static_cast<uint8_t>(ContentParam::CT_P_NAME_VALUE),
-        static_cast<uint8_t>(ContentParam::CT_P_START_INFO),
-        static_cast<uint8_t>(ContentParam::CT_P_START_INFO_VALUE),
-    };
-    param.SetCharSet(PickCharset(cursor));
-    param.SetType(PickContentType(cursor));
-    param.SetFileName(NonEmpty(cursor.ConsumeText(32), "part.txt"));
-    param.SetStart(NonEmpty(cursor.ConsumeText(32), "<smil>"));
-    uint32_t count = cursor.ConsumeUint32(1, 4);
-    for (uint32_t i = 0; i < count; ++i) {
-        uint8_t field = TEXT_FIELDS[cursor.ConsumeUint32(0, static_cast<uint32_t>(TEXT_FIELDS.size() - 1))];
-        param.AddNormalField(field, NonEmpty(cursor.ConsumeText(32), "field"));
-    }
+    FillContentParamTextFields(param, cursor);
+    AddContentParamNormalFields(param, cursor);
 }
 
 inline MmsContentType MakeContentType(DataCursor &cursor)
@@ -268,80 +380,98 @@ inline MmsContentType MakeContentType(DataCursor &cursor)
 inline MmsAttachment MakeAttachment(DataCursor &cursor, bool forceSmil = false)
 {
     MmsAttachment attachment;
-    std::string fileName = NonEmpty(cursor.ConsumeText(32), forceSmil ? "smil.xml" : "image.jpg");
+    std::string fileName = NonEmpty(cursor.ConsumeText(SHORT_TEXT_SIZE), forceSmil ? "smil.xml" : "image.jpg");
     bool isSmil = forceSmil || cursor.ConsumeBool();
-    attachment.SetAttachmentFilePath("/not_in_app_sandbox/" + fileName, isSmil);
-    attachment.SetFileName(fileName);
-    attachment.SetContentId(NonEmpty(cursor.ConsumeText(32), "part-1"));
-    attachment.SetContentLocation(NonEmpty(cursor.ConsumeText(32), fileName));
-    attachment.SetContentDisposition(PickDisposition(cursor));
-    attachment.SetContentTransferEncoding(PickTransferEncoding(cursor));
-    attachment.SetContentType(PickContentType(cursor));
-    attachment.SetCharSet(PickCharset(cursor));
-    std::vector<uint8_t> bytes = cursor.ConsumeBytes(MAX_BINARY_SIZE);
-    if (bytes.empty()) {
-        bytes.push_back(static_cast<uint8_t>('A'));
-    }
-    attachment.SetDataBuffer(MakeCharBuffer(bytes), static_cast<uint32_t>(bytes.size()));
+    FillAttachmentPathFields(attachment, fileName, isSmil);
+    FillAttachmentContentFields(attachment, cursor);
+    FillAttachmentData(attachment, cursor);
     return attachment;
+}
+
+inline void FillFallbackBodyPart(MmsBodyPart &bodyPart, bool forceSmil)
+{
+    bodyPart.SetFileName("fallback.dat");
+    bodyPart.SetContentType("text/plain");
+    bodyPart.SetContentId("<fallback>");
+    bodyPart.SetContentLocation("fallback.dat");
+    bodyPart.SetContentDisposition("attachment");
+    bodyPart.SetSmilFile(forceSmil);
+}
+
+inline void FillFallbackAttachmentCodec(MmsAttachment &fallback, bool forceSmil);
+
+inline void FillFallbackAttachmentMetadata(MmsAttachment &fallback, bool forceSmil)
+{
+    fallback.SetFileName("fallback.dat");
+    fallback.SetContentId("<fallback>");
+    fallback.SetContentLocation("fallback.dat");
+    fallback.SetContentDisposition("attachment");
+    FillFallbackAttachmentCodec(fallback, forceSmil);
+}
+
+inline void FillFallbackAttachmentCodec(MmsAttachment &fallback, bool forceSmil)
+{
+    fallback.SetContentTransferEncoding("binary");
+    fallback.SetContentType("text/plain");
+    fallback.SetCharSet(static_cast<uint32_t>(MmsCharSets::UTF_8));
+    fallback.SetIsSmilFile(forceSmil);
+}
+
+inline MmsAttachment MakeFallbackAttachment(bool forceSmil)
+{
+    MmsAttachment fallback;
+    FillFallbackAttachmentMetadata(fallback, forceSmil);
+    std::vector<uint8_t> bytes(FALLBACK_BYTES.begin(), FALLBACK_BYTES.end());
+    fallback.SetDataBuffer(MakeCharBuffer(bytes), static_cast<uint32_t>(bytes.size()));
+    return fallback;
+}
+
+inline void AttachFallbackBodyPart(MmsBodyPart &bodyPart, bool forceSmil)
+{
+    MmsAttachment fallback = MakeFallbackAttachment(forceSmil);
+    if (!bodyPart.SetAttachment(fallback)) {
+        FillFallbackBodyPart(bodyPart, forceSmil);
+    }
 }
 
 inline MmsBodyPart MakeBodyPart(DataCursor &cursor, bool forceSmil = false)
 {
-    MmsAttachment attachment = MakeAttachment(cursor, forceSmil);
     MmsBodyPart bodyPart;
+    MmsAttachment attachment = MakeAttachment(cursor, forceSmil);
     if (!bodyPart.SetAttachment(attachment)) {
-        MmsAttachment fallback;
-        fallback.SetFileName("fallback.dat");
-        fallback.SetContentId("<fallback>");
-        fallback.SetContentLocation("fallback.dat");
-        fallback.SetContentDisposition("attachment");
-        fallback.SetContentTransferEncoding("binary");
-        fallback.SetContentType("text/plain");
-        fallback.SetCharSet(static_cast<uint32_t>(MmsCharSets::UTF_8));
-        fallback.SetIsSmilFile(forceSmil);
-        std::vector<uint8_t> bytes = { static_cast<uint8_t>('F'), static_cast<uint8_t>('U'),
-            static_cast<uint8_t>('Z'), static_cast<uint8_t>('Z') };
-        fallback.SetDataBuffer(MakeCharBuffer(bytes), static_cast<uint32_t>(bytes.size()));
-        if (!bodyPart.SetAttachment(fallback)) {
-            bodyPart.SetFileName("fallback.dat");
-            bodyPart.SetContentType("text/plain");
-            bodyPart.SetContentId("<fallback>");
-            bodyPart.SetContentLocation("fallback.dat");
-            bodyPart.SetContentDisposition("attachment");
-            bodyPart.SetSmilFile(forceSmil);
-        }
+        AttachFallbackBodyPart(bodyPart, forceSmil);
     }
     return bodyPart;
 }
 
 inline uint8_t PickMessageType(DataCursor &cursor)
 {
-    static constexpr std::array<uint8_t, 9> MESSAGE_TYPES = {
-        MMS_MSGTYPE_SEND_REQ,
-        MMS_MSGTYPE_SEND_CONF,
-        MMS_MSGTYPE_NOTIFICATION_IND,
-        MMS_MSGTYPE_NOTIFYRESP_IND,
-        MMS_MSGTYPE_RETRIEVE_CONF,
-        MMS_MSGTYPE_ACKNOWLEDGE_IND,
-        MMS_MSGTYPE_DELIVERY_IND,
-        MMS_MSGTYPE_READ_REC_IND,
-        MMS_MSGTYPE_READ_ORIG_IND,
-    };
-    return MESSAGE_TYPES[cursor.ConsumeUint32(0, static_cast<uint32_t>(MESSAGE_TYPES.size() - 1))];
+    return MESSAGE_TYPES[cursor.ConsumeUint32(EMPTY_SIZE, LastIndex(MESSAGE_TYPES.size()))];
 }
+
+inline void AddMessageHeaderTextFields(MmsHeader &header, DataCursor &cursor);
+inline void AddMessageHeaderSizeFields(MmsHeader &header, DataCursor &cursor);
 
 inline void AddCommonHeaderFields(MmsHeader &header, DataCursor &cursor, uint8_t messageType)
 {
     header.SetOctetValue(MMS_MESSAGE_TYPE, messageType);
-    header.SetLongValue(MMS_MMS_VERSION, cursor.ConsumeUint32(0x10, 0x13));
-    header.SetTextValue(MMS_TRANSACTION_ID, NonEmpty(cursor.ConsumeText(32), "fuzz-transaction"));
+    header.SetLongValue(MMS_MMS_VERSION, cursor.ConsumeUint32(MMS_VERSION_MIN_VALUE, MMS_VERSION_MAX_VALUE));
+    header.SetTextValue(MMS_TRANSACTION_ID, NonEmpty(cursor.ConsumeText(SHORT_TEXT_SIZE), "fuzz-transaction"));
     header.SetLongValue(MMS_DATE, static_cast<int64_t>(cursor.ConsumeUint64()));
-    header.SetTextValue(MMS_MESSAGE_ID, NonEmpty(cursor.ConsumeText(32), "fuzz-message"));
-    header.SetTextValue(MMS_CONTENT_LOCATION, NonEmpty(cursor.ConsumeText(48), "http://mmsc/fuzz"));
-    header.SetLongValue(MMS_MESSAGE_SIZE, cursor.ConsumeUint32(1, 4096));
-    header.SetLongValue(MMS_EXPIRY, cursor.ConsumeUint32(1, 4096));
-    header.SetEncodeStringValue(MMS_SUBJECT, PickCharset(cursor), NonEmpty(cursor.ConsumeText(48), "fuzz subject"));
+    AddMessageHeaderTextFields(header, cursor);
+    AddMessageHeaderSizeFields(header, cursor);
+}
+
+inline void AddMessageHeaderTextFields(MmsHeader &header, DataCursor &cursor)
+{
+    header.SetTextValue(MMS_MESSAGE_ID, NonEmpty(cursor.ConsumeText(SHORT_TEXT_SIZE), "fuzz-message"));
+    header.SetTextValue(MMS_CONTENT_LOCATION, NonEmpty(cursor.ConsumeText(MEDIUM_TEXT_SIZE), "http://mmsc/fuzz"));
+}
+
+inline void AddMessageHeaderSizeFields(MmsHeader &header, DataCursor &cursor)
+{
+    header.SetLongValue(MMS_MESSAGE_SIZE, cursor.ConsumeUint32(MIN_BUFFER_SIZE, MAX_HEADER_VALUE));
+    header.SetLongValue(MMS_EXPIRY, cursor.ConsumeUint32(MIN_BUFFER_SIZE, MAX_HEADER_VALUE));
     header.GetHeaderContentType().SetContentType("application/vnd.wap.multipart.related");
 }
 
@@ -355,14 +485,27 @@ inline void AddAddressFields(MmsHeader &header, DataCursor &cursor)
     header.AddHeaderAddressValue(MMS_CC, cc);
 }
 
+inline void AddClassOctetFields(MmsHeader &header);
+inline void AddBoolOctetFields(MmsHeader &header, DataCursor &cursor);
+
 inline void AddOctetFields(MmsHeader &header, DataCursor &cursor)
 {
     header.SetOctetValue(MMS_RESPONSE_STATUS, static_cast<uint8_t>(MmsResponseStatus::MMS_OK));
     header.SetOctetValue(MMS_STATUS, static_cast<uint8_t>(MmsStatus::MMS_RETRIEVED));
     header.SetOctetValue(MMS_READ_STATUS, static_cast<uint8_t>(MmsReadStatus::MMS_READ));
     header.SetOctetValue(MMS_PRIORITY, static_cast<uint8_t>(MmsPriority::MMS_NORMAL));
+    AddClassOctetFields(header);
+    AddBoolOctetFields(header, cursor);
+}
+
+inline void AddClassOctetFields(MmsHeader &header)
+{
     header.SetOctetValue(MMS_MESSAGE_CLASS, static_cast<uint8_t>(MmsMessageClass::PERSONAL));
     header.SetOctetValue(MMS_CONTENT_CLASS, static_cast<uint8_t>(MmsContentClass::MMS_TEXT));
+}
+
+inline void AddBoolOctetFields(MmsHeader &header, DataCursor &cursor)
+{
     header.SetOctetValue(MMS_DELIVERY_REPORT, cursor.ConsumeBool() ? static_cast<uint8_t>(MmsBoolType::MMS_YES) :
         static_cast<uint8_t>(MmsBoolType::MMS_NO));
     header.SetOctetValue(MMS_REPORT_ALLOWED, cursor.ConsumeBool() ? static_cast<uint8_t>(MmsBoolType::MMS_YES) :
@@ -376,15 +519,20 @@ inline void FillMmsHeader(MmsHeader &header, DataCursor &cursor, uint8_t message
     AddOctetFields(header, cursor);
 }
 
+inline void AddMsgAttachments(MmsMsg &msg, DataCursor &cursor)
+{
+    MmsAttachment smil = MakeAttachment(cursor, true);
+    MmsAttachment media = MakeAttachment(cursor, false);
+    msg.AddAttachment(smil);
+    msg.AddAttachment(media);
+}
+
 inline void FillMmsMsg(MmsMsg &msg, DataCursor &cursor, uint8_t messageType)
 {
     FillMmsHeader(msg.GetHeader(), cursor, messageType);
     msg.SetHeaderContentType("application/vnd.wap.multipart.related");
     if (messageType == MMS_MSGTYPE_SEND_REQ || messageType == MMS_MSGTYPE_RETRIEVE_CONF) {
-        MmsAttachment smil = MakeAttachment(cursor, true);
-        MmsAttachment media = MakeAttachment(cursor, false);
-        msg.AddAttachment(smil);
-        msg.AddAttachment(media);
+        AddMsgAttachments(msg, cursor);
     }
 }
 
@@ -404,21 +552,23 @@ inline std::vector<uint8_t> EncodeContentType(DataCursor &cursor)
     return ReadEncodedBytes(encodeBuffer);
 }
 
+inline std::vector<uint8_t> EncodeMmsMessageToBytes(MmsMsg &msg, uint32_t &len);
+
 inline std::vector<uint8_t> EncodeMmsMessage(DataCursor &cursor, uint8_t messageType)
 {
     MmsMsg msg;
     FillMmsMsg(msg, cursor, messageType);
-    uint32_t len = 0;
+    uint32_t len = EMPTY_SIZE;
+    return EncodeMmsMessageToBytes(msg, len);
+}
+
+inline std::vector<uint8_t> EncodeMmsMessageToBytes(MmsMsg &msg, uint32_t &len)
+{
     auto encoded = msg.EncodeMsg(len);
-    std::vector<uint8_t> bytes;
-    if (encoded == nullptr || len == 0) {
-        return bytes;
+    if (encoded == nullptr || len == EMPTY_SIZE) {
+        return {};
     }
-    bytes.reserve(len);
-    for (uint32_t i = 0; i < len; ++i) {
-        bytes.push_back(static_cast<uint8_t>(encoded[i]));
-    }
-    return bytes;
+    return CopyRawBytes(encoded, len);
 }
 } // namespace SmsMmsFuzz
 } // namespace Telephony

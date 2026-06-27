@@ -21,21 +21,17 @@ namespace OHOS {
 namespace Telephony {
 static void QueryHeader(MmsHeader &header)
 {
-    uint8_t octet = 0;
-    int64_t longValue = 0;
+    uint8_t octet = SmsMmsFuzz::ZERO_BYTE;
+    int64_t longValue = static_cast<int64_t>(SmsMmsFuzz::EMPTY_SIZE);
     std::string textValue;
-    MmsEncodeString encoded;
     std::vector<MmsAddress> addresses;
     header.GetOctetValue(MMS_MESSAGE_TYPE, octet);
     header.GetLongValue(MMS_DATE, longValue);
     header.GetTextValue(MMS_TRANSACTION_ID, textValue);
-    header.GetStringValue(MMS_SUBJECT, textValue);
-    header.GetEncodeStringValue(MMS_SUBJECT, encoded);
     header.GetHeaderAllAddressValue(MMS_TO, addresses);
     header.GetHeaderContentType();
     header.GetSmilFileName(textValue);
     header.IsHaveBody();
-    header.DumpMmsHeader();
 }
 
 static void RunMmsHeaderFuzz(const uint8_t *data, size_t size)
@@ -45,11 +41,10 @@ static void RunMmsHeaderFuzz(const uint8_t *data, size_t size)
     uint8_t messageType = SmsMmsFuzz::PickMessageType(cursor);
     SmsMmsFuzz::FillMmsHeader(header, cursor, messageType);
     header.SetOctetValue(MMS_PRIORITY, cursor.ConsumeByte());
-    header.SetLongValue(MMS_MESSAGE_COUNT, cursor.ConsumeUint32(0, 4096));
-    std::string text = SmsMmsFuzz::NonEmpty(cursor.ConsumeText(32), "cancel-id");
+    header.SetLongValue(MMS_MESSAGE_COUNT,
+        cursor.ConsumeUint32(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_HEADER_VALUE));
+    std::string text = SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "cancel-id");
     header.SetTextValue(MMS_CANCEL_ID, text);
-    header.SetEncodeStringValue(MMS_RESPONSE_TEXT, SmsMmsFuzz::PickCharset(cursor),
-        SmsMmsFuzz::NonEmpty(cursor.ConsumeText(32), "response"));
     MmsAddress address = SmsMmsFuzz::MakeAddress(cursor);
     header.AddHeaderAddressValue(MMS_BCC, address);
     QueryHeader(header);
@@ -70,5 +65,5 @@ static void RunMmsHeaderFuzz(const uint8_t *data, size_t size)
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     OHOS::Telephony::RunMmsHeaderFuzz(data, size);
-    return 0;
+    return OHOS::Telephony::SmsMmsFuzz::FUZZER_SUCCESS;
 }

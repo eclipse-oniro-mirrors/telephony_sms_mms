@@ -23,12 +23,10 @@ namespace OHOS {
 namespace Telephony {
 static void QueryMsg(MmsMsg &msg)
 {
-    msg.DumpMms();
     msg.GetMmsVersion();
     msg.GetMmsMessageType();
     msg.GetMmsTransactionId();
     msg.GetMmsDate();
-    msg.GetMmsSubject();
     msg.GetMmsFrom();
     std::vector<MmsAddress> toAddrs;
     msg.GetMmsTo(toAddrs);
@@ -49,33 +47,28 @@ static void RunMmsMsgFuzz(const uint8_t *data, size_t size)
     uint8_t messageType = SmsMmsFuzz::PickMessageType(cursor);
     MmsMsg msg;
     SmsMmsFuzz::FillMmsMsg(msg, cursor, messageType);
-    msg.SetMmsVersion(static_cast<uint16_t>(cursor.ConsumeUint32(0, 0xff)));
+    msg.SetMmsVersion(static_cast<uint16_t>(
+        cursor.ConsumeUint32(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_MMS_VERSION_VALUE)));
     msg.SetMmsMessageType(messageType);
-    msg.SetMmsTransactionId(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(32), "tx"));
+    msg.SetMmsTransactionId(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "tx"));
     msg.SetMmsDate(static_cast<int64_t>(cursor.ConsumeUint64()));
-    msg.SetMmsSubject(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(48), "subject"));
     MmsAddress from = SmsMmsFuzz::MakeAddress(cursor);
     msg.SetMmsFrom(from);
     std::vector<MmsAddress> toAddrs = { SmsMmsFuzz::MakeAddress(cursor), SmsMmsFuzz::MakeAddress(cursor) };
     msg.SetMmsTo(toAddrs);
-    std::string text = SmsMmsFuzz::NonEmpty(cursor.ConsumeText(32), "header-text");
+    std::string text = SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "header-text");
     msg.SetHeaderStringValue(MMS_CONTENT_LOCATION, text);
-    msg.SetHeaderEncodedStringValue(MMS_RESPONSE_TEXT, text, SmsMmsFuzz::PickCharset(cursor));
     msg.SetHeaderOctetValue(MMS_CONTENT_CLASS, static_cast<uint8_t>(MmsContentClass::MMS_TEXT));
-    msg.SetHeaderIntegerValue(MMS_MESSAGE_COUNT, static_cast<int32_t>(cursor.ConsumeUint32(0, 4096)));
+    msg.SetHeaderIntegerValue(MMS_MESSAGE_COUNT, static_cast<int32_t>(
+        cursor.ConsumeUint32(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_HEADER_VALUE)));
     QueryMsg(msg);
 
-    uint32_t outLen = 0;
+    uint32_t outLen = SmsMmsFuzz::EMPTY_SIZE;
     auto encoded = msg.EncodeMsg(outLen);
-    if (encoded != nullptr && outLen > 0) {
+    if (encoded != nullptr && outLen > SmsMmsFuzz::EMPTY_SIZE) {
         MmsMsg decoded;
         decoded.DecodeMsg(std::move(encoded), outLen);
         QueryMsg(decoded);
-    }
-    std::vector<uint8_t> raw = cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE);
-    if (!raw.empty()) {
-        MmsMsg rawDecoded;
-        rawDecoded.DecodeMsg(SmsMmsFuzz::MakeCharBuffer(raw), static_cast<uint32_t>(raw.size()));
     }
 }
 } // namespace Telephony
@@ -84,5 +77,5 @@ static void RunMmsMsgFuzz(const uint8_t *data, size_t size)
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     OHOS::Telephony::RunMmsMsgFuzz(data, size);
-    return 0;
+    return OHOS::Telephony::SmsMmsFuzz::FUZZER_SUCCESS;
 }

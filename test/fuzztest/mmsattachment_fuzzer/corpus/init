@@ -13,5 +13,5 @@
  * limitations under the License.
  */
 
-valid-attachment content-id location disposition base64 quoted-printable
+valid-attachment content-id location disposition binary quoted-printable
 FUZZ

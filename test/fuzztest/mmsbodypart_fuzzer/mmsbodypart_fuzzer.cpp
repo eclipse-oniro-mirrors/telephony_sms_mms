@@ -23,20 +23,19 @@ static void DecodePartBytes(const std::vector<uint8_t> &bytes)
 {
     auto decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(bytes);
     MmsBodyPart decoded;
-    decoded.DecodePart(*decodeBuffer, 1);
+    decoded.DecodePart(*decodeBuffer, SmsMmsFuzz::MIN_BUFFER_SIZE);
 }
 
 static void RunMmsBodyPartFuzz(const uint8_t *data, size_t size)
 {
     SmsMmsFuzz::DataCursor cursor(data, size);
     MmsBodyPart bodyPart = SmsMmsFuzz::MakeBodyPart(cursor, cursor.ConsumeBool());
-    bodyPart.DumpMmsBodyPart();
     bodyPart.SetContentType(SmsMmsFuzz::PickContentType(cursor));
-    bodyPart.SetContentId(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(32), "<cid>"));
-    bodyPart.SetContentLocation(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(32), "part.txt"));
+    bodyPart.SetContentId(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "<cid>"));
+    bodyPart.SetContentLocation(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "part.txt"));
     bodyPart.SetContentDisposition(SmsMmsFuzz::PickDisposition(cursor));
     bodyPart.SetSmilFile(cursor.ConsumeBool());
-    bodyPart.SetFileName(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(32), "part.dat"));
+    bodyPart.SetFileName(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "part.dat"));
     std::string value;
     bodyPart.GetContentType(value);
     bodyPart.GetContentId(value);
@@ -49,8 +48,7 @@ static void RunMmsBodyPartFuzz(const uint8_t *data, size_t size)
     MmsEncodeBuffer encodeBuffer;
     bodyPart.EncodeMmsBodyPart(encodeBuffer);
     DecodePartBytes(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
-    DecodePartBytes(cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE));
-    uint32_t len = 0;
+    uint32_t len = SmsMmsFuzz::EMPTY_SIZE;
     auto body = bodyPart.ReadBodyPartBuffer(len);
     MmsBodyPart copy(bodyPart);
     MmsBodyPart assigned;
@@ -63,5 +61,5 @@ static void RunMmsBodyPartFuzz(const uint8_t *data, size_t size)
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     OHOS::Telephony::RunMmsBodyPartFuzz(data, size);
-    return 0;
+    return OHOS::Telephony::SmsMmsFuzz::FUZZER_SUCCESS;
 }

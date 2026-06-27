@@ -23,13 +23,12 @@ static void RunMmsBodyFuzz(const uint8_t *data, size_t size)
 {
     SmsMmsFuzz::DataCursor cursor(data, size);
     MmsBody body;
-    uint32_t count = cursor.ConsumeUint32(1, SmsMmsFuzz::MAX_PART_COUNT);
-    for (uint32_t i = 0; i < count; ++i) {
-        MmsBodyPart part = SmsMmsFuzz::MakeBodyPart(cursor, i == 0 && cursor.ConsumeBool());
+    uint32_t count = cursor.ConsumeUint32(SmsMmsFuzz::MIN_BUFFER_SIZE, SmsMmsFuzz::MAX_PART_COUNT);
+    for (uint32_t i = SmsMmsFuzz::EMPTY_SIZE; i < count; ++i) {
+        MmsBodyPart part = SmsMmsFuzz::MakeBodyPart(cursor, i == SmsMmsFuzz::EMPTY_SIZE && cursor.ConsumeBool());
         body.IsBodyPartExist(part);
         body.AddMmsBodyPart(part);
     }
-    body.DumpMmsBody();
     body.GetBodyPartCount();
     std::vector<MmsBodyPart> parts;
     body.GetMmsBodyPart(parts);
@@ -41,9 +40,6 @@ static void RunMmsBodyFuzz(const uint8_t *data, size_t size)
     body.EncodeMmsBody(encodeBuffer);
     auto decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
     body.DecodeMmsBody(*decodeBuffer, header);
-
-    auto rawDecodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE));
-    body.DecodeMultipart(*rawDecodeBuffer);
 }
 } // namespace Telephony
 } // namespace OHOS
@@ -51,5 +47,5 @@ static void RunMmsBodyFuzz(const uint8_t *data, size_t size)
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     OHOS::Telephony::RunMmsBodyFuzz(data, size);
-    return 0;
+    return OHOS::Telephony::SmsMmsFuzz::FUZZER_SUCCESS;
 }

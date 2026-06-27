@@ -12,7 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "wappushbuffer_fuzzer.h"
+
 #ifdef GTEST_API_
 #define private public
 #endif

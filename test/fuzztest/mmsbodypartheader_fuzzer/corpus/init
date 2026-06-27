@@ -13,5 +13,5 @@
  * limitations under the License.
  */
 
-Content-Transfer-Encoding base64 inline attachment content-id
+Content-Transfer-Encoding binary inline attachment content-id
 FUZZ

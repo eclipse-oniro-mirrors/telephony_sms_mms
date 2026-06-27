@@ -23,7 +23,7 @@ static void DecodeContentTypeBytes(const std::vector<uint8_t> &bytes)
 {
     auto decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(bytes);
     MmsContentType contentType;
-    int32_t len = 0;
+    int32_t len = static_cast<int32_t>(SmsMmsFuzz::EMPTY_SIZE);
     contentType.DecodeMmsContentType(*decodeBuffer, len);
 }
 
@@ -31,7 +31,6 @@ static void RunMmsContentTypeFuzz(const uint8_t *data, size_t size)
 {
     SmsMmsFuzz::DataCursor cursor(data, size);
     MmsContentType contentType = SmsMmsFuzz::MakeContentType(cursor);
-    contentType.DumpMmsContentType();
     std::string contentTypeText;
     contentType.GetContentType(contentTypeText);
     MmsContentType::GetContentTypeFromString(contentTypeText);
@@ -45,7 +44,8 @@ static void RunMmsContentTypeFuzz(const uint8_t *data, size_t size)
     contentType.EncodeMmsBodyPartContentType(encodeBuffer);
     DecodeContentTypeBytes(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
 
-    std::vector<uint8_t> shortForm = { static_cast<uint8_t>(0x80 | (cursor.ConsumeByte() & 0x7f)) };
+    std::vector<uint8_t> shortForm = { static_cast<uint8_t>(SmsMmsFuzz::SHORT_INTEGER_MARK |
+        (cursor.ConsumeByte() & SmsMmsFuzz::SHORT_INTEGER_MASK)) };
     DecodeContentTypeBytes(shortForm);
     std::vector<uint8_t> raw = cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE);
     DecodeContentTypeBytes(raw);
@@ -56,5 +56,5 @@ static void RunMmsContentTypeFuzz(const uint8_t *data, size_t size)
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     OHOS::Telephony::RunMmsContentTypeFuzz(data, size);
-    return 0;
+    return OHOS::Telephony::SmsMmsFuzz::FUZZER_SUCCESS;
 }
