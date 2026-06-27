@@ -36,10 +36,13 @@ static void RunMmsBodyFuzz(const uint8_t *data, size_t size)
     MmsHeader header;
     SmsMmsFuzz::FillMmsHeader(header, cursor, MMS_MSGTYPE_SEND_REQ);
     MmsEncodeBuffer encodeBuffer;
-    body.EncodeMmsHeaderContentType(header, encodeBuffer);
-    body.EncodeMmsBody(encodeBuffer);
-    auto decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
-    body.DecodeMmsBody(*decodeBuffer, header);
+    bool headerEncoded = body.EncodeMmsHeaderContentType(header, encodeBuffer);
+    bool bodyEncoded = body.EncodeMmsBody(encodeBuffer);
+    if (headerEncoded && bodyEncoded) {
+        auto decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
+        body.DecodeMmsBody(*decodeBuffer, header);
+    }
+    parts.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

@@ -41,14 +41,20 @@ static void RunMmsContentTypeFuzz(const uint8_t *data, size_t size)
     contentType.EncodeCharsetField(encodeBuffer);
     contentType.EncodeTypeField(encodeBuffer);
     contentType.EncodeMmsBodyPartContentParam(encodeBuffer);
-    contentType.EncodeMmsBodyPartContentType(encodeBuffer);
-    DecodeContentTypeBytes(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
+
+    MmsEncodeBuffer contentTypeBuffer;
+    if (contentType.EncodeMmsBodyPartContentType(contentTypeBuffer)) {
+        DecodeContentTypeBytes(SmsMmsFuzz::ReadEncodedBytes(contentTypeBuffer));
+    }
 
     std::vector<uint8_t> shortForm = { static_cast<uint8_t>(SmsMmsFuzz::SHORT_INTEGER_MARK |
         (cursor.ConsumeByte() & SmsMmsFuzz::SHORT_INTEGER_MASK)) };
     DecodeContentTypeBytes(shortForm);
     std::vector<uint8_t> raw = cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE);
     DecodeContentTypeBytes(raw);
+    raw.clear();
+    shortForm.clear();
+    contentTypeText.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

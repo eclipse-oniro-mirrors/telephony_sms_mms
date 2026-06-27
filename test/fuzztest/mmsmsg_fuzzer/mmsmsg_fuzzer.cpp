@@ -39,6 +39,8 @@ static void QueryMsg(MmsMsg &msg)
     std::vector<MmsAttachment> attachments;
     msg.GetAllAttachment(attachments);
     msg.GetHeader();
+    attachments.clear();
+    toAddrs.clear();
 }
 
 static void RunMmsMsgFuzz(const uint8_t *data, size_t size)
@@ -67,9 +69,12 @@ static void RunMmsMsgFuzz(const uint8_t *data, size_t size)
     auto encoded = msg.EncodeMsg(outLen);
     if (encoded != nullptr && outLen > SmsMmsFuzz::EMPTY_SIZE) {
         MmsMsg decoded;
-        decoded.DecodeMsg(std::move(encoded), outLen);
-        QueryMsg(decoded);
+        if (decoded.DecodeMsg(std::move(encoded), outLen)) {
+            QueryMsg(decoded);
+        }
     }
+    toAddrs.clear();
+    text.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

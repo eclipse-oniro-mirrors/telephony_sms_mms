@@ -103,8 +103,7 @@ static void RunMmsContentParamFuzz(const uint8_t *data, size_t size)
             break;
     }
 
-    MmsContentParam assigned;
-    assigned = param;
+    MmsContentParam assigned = param;
     std::string fileName;
     std::string start;
     (void)assigned.GetCharSet();

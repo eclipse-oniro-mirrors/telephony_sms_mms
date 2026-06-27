@@ -60,8 +60,9 @@ static void RunMmsBodyPartHeaderFuzz(const uint8_t *data, size_t size)
     DecodeHeaderBytes(synthetic);
     DecodeHeaderBytes(cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE));
     MmsBodyPartHeader copy(header);
-    MmsBodyPartHeader assigned;
-    assigned = copy;
+    MmsBodyPartHeader assigned = copy;
+    synthetic.clear();
+    value.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

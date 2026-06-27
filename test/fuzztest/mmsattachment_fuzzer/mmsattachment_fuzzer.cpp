@@ -50,7 +50,18 @@ static void RunMmsAttachmentFuzz(const uint8_t *data, size_t size)
     copy.GetFileName();
     copy.GetCharSet();
     copy.IsSmilFile();
+
+    MmsBodyPart bodyPart;
+    if (bodyPart.SetAttachment(copy)) {
+        MmsEncodeBuffer encodeBuffer;
+        if (bodyPart.EncodeMmsBodyPart(encodeBuffer)) {
+            auto decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
+            MmsBodyPart decoded;
+            decoded.DecodePart(*decodeBuffer, SmsMmsFuzz::MIN_BUFFER_SIZE);
+        }
+    }
     (void)buffer;
+    bytes.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

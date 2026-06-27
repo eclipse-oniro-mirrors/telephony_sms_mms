@@ -36,31 +36,34 @@ constexpr uint8_t SAMPLE_SHORT_INTEGER = MMS_SAMPLE_SHORT_INTEGER_VALUE;
 
 static void ExerciseDecodeBuffer(const std::vector<uint8_t> &bytes)
 {
-    auto buffer = SmsMmsFuzz::MakeDecodeBuffer(bytes);
     uint8_t oneByte = SmsMmsFuzz::ZERO_BYTE;
     uint32_t value = SmsMmsFuzz::EMPTY_SIZE;
     uint32_t count = SmsMmsFuzz::EMPTY_SIZE;
     uint64_t integer = static_cast<uint64_t>(SmsMmsFuzz::EMPTY_SIZE);
     std::string text;
-    buffer->PeekOneByte(oneByte);
-    buffer->DecodeIsShortInt();
-    buffer->DecodeIsString();
-    buffer->DecodeIsValueLength();
-    buffer->MarkPosition();
-    buffer->GetOneByte(oneByte);
-    buffer->UnMarkPosition();
-    buffer->DecodeShortLength(oneByte);
-    buffer->DecodeValueLengthReturnLen(value, count);
-    buffer->DecodeValueLength(value);
-    buffer->DecodeUintvar(value, count);
-    buffer->DecodeText(text, value);
-    buffer->DecodeTokenText(text, value);
-    buffer->DecodeQuotedText(text, value);
-    buffer->DecodeShortInteger(oneByte);
-    buffer->DecodeLongInteger(integer);
-    buffer->DecodeInteger(integer);
-    buffer->IncreasePointer(SmsMmsFuzz::EMPTY_SIZE);
-    buffer->DecreasePointer(SmsMmsFuzz::EMPTY_SIZE);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->PeekOneByte(oneByte);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeIsShortInt();
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeIsString();
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeIsValueLength();
+
+    auto markedBuffer = SmsMmsFuzz::MakeDecodeBuffer(bytes);
+    markedBuffer->MarkPosition();
+    markedBuffer->GetOneByte(oneByte);
+    markedBuffer->UnMarkPosition();
+
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeShortLength(oneByte);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeValueLengthReturnLen(value, count);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeValueLength(value);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeUintvar(value, count);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeText(text, value);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeTokenText(text, value);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeQuotedText(text, value);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeShortInteger(oneByte);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeLongInteger(integer);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeInteger(integer);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->IncreasePointer(SmsMmsFuzz::EMPTY_SIZE);
+    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecreasePointer(SmsMmsFuzz::EMPTY_SIZE);
+    text.clear();
 }
 
 static void RunMmsDecodeBufferFuzz(const uint8_t *data, size_t size)

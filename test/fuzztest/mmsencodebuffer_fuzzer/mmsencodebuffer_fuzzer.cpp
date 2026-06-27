@@ -68,6 +68,7 @@ static void RunMmsEncodeBufferFuzz(const uint8_t *data, size_t size)
     std::vector<uint8_t> bytes = cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE);
     encodeBuffer.WriteBuffer(SmsMmsFuzz::MakeCharBuffer(bytes), static_cast<uint32_t>(bytes.size()));
     encodeBuffer.ReadDataBuffer(SmsMmsFuzz::EMPTY_SIZE, encodeBuffer.GetCurPosition());
+    bytes.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

@@ -112,7 +112,9 @@ static void RunMmsAddressFuzz(const uint8_t *data, size_t size)
         (void)current;
         (void)currentCharset;
         (void)currentType;
+        current.clear();
     }
+    inputAddress.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

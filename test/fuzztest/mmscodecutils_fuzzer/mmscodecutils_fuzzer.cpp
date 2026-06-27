@@ -140,6 +140,9 @@ static void RunMmsCodecUtilsFuzz(const uint8_t *data, size_t size)
                 break;
         }
     }
+    input.clear();
+    charsetName.clear();
+    qpDecoded.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

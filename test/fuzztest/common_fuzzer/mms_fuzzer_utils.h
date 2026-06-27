@@ -72,6 +72,12 @@ constexpr size_t CONTENT_PARAM_TEXT_FIELD_COUNT = 8;
 constexpr size_t MESSAGE_TYPE_COUNT = 9;
 constexpr size_t FALLBACK_DATA_SIZE = 4;
 
+static_assert(FUZZER_SUCCESS == static_cast<int>(EMPTY_SIZE));
+static_assert(MAX_CHARSET_VALUE > MAX_TEXT_SIZE);
+static_assert(MAX_MMS_VERSION_VALUE > MMS_VERSION_MAX_VALUE);
+static_assert(SHORT_INTEGER_MARK > SHORT_INTEGER_MASK);
+static_assert(INVALID_FIELD_ID > SHORT_INTEGER_MARK);
+
 constexpr std::array<const char *, CONTENT_TYPE_COUNT> CONTENT_TYPES = {
     "text/plain",
     "text/html",
@@ -197,12 +203,6 @@ public:
         return result;
     }
 
-    template<typename T, size_t N>
-    T Pick(const std::array<T, N> &values)
-    {
-        return values[ConsumeUint32(EMPTY_SIZE, static_cast<uint32_t>(N - MIN_BUFFER_SIZE))];
-    }
-
 private:
     template<typename T>
     T ConsumeInteger(uint32_t byteCount)
@@ -307,6 +307,8 @@ inline std::vector<uint8_t> ReadEncodedBytes(MmsEncodeBuffer &encodeBuffer)
     return CopyRawBytes(raw, len);
 }
 
+static_assert(sizeof(&ReadEncodedBytes) >= MIN_BUFFER_SIZE);
+
 inline void FillContentParamTextFields(MmsContentParam &param, DataCursor &cursor)
 {
     param.SetCharSet(PickCharset(cursor));
@@ -335,6 +337,8 @@ inline std::unique_ptr<MmsDecodeBuffer> MakeDecodeBuffer(const std::vector<uint8
     decodeBuffer->WriteDataBuffer(MakeCharBuffer(payload), static_cast<uint32_t>(payload.size()));
     return decodeBuffer;
 }
+
+static_assert(sizeof(&MakeDecodeBuffer) >= MIN_BUFFER_SIZE);
 
 inline void FillAttachmentPathFields(MmsAttachment &attachment, const std::string &fileName, bool isSmil)
 {
@@ -376,6 +380,8 @@ inline MmsContentType MakeContentType(DataCursor &cursor)
     contentType.SetContentParam(param);
     return contentType;
 }
+
+static_assert(sizeof(&MakeContentType) >= MIN_BUFFER_SIZE);
 
 inline MmsAttachment MakeAttachment(DataCursor &cursor, bool forceSmil = false)
 {
@@ -444,10 +450,14 @@ inline MmsBodyPart MakeBodyPart(DataCursor &cursor, bool forceSmil = false)
     return bodyPart;
 }
 
+static_assert(sizeof(&MakeBodyPart) >= MIN_BUFFER_SIZE);
+
 inline uint8_t PickMessageType(DataCursor &cursor)
 {
     return MESSAGE_TYPES[cursor.ConsumeUint32(EMPTY_SIZE, LastIndex(MESSAGE_TYPES.size()))];
 }
+
+static_assert(sizeof(&PickMessageType) >= MIN_BUFFER_SIZE);
 
 inline void AddMessageHeaderTextFields(MmsHeader &header, DataCursor &cursor);
 inline void AddMessageHeaderSizeFields(MmsHeader &header, DataCursor &cursor);
@@ -536,31 +546,7 @@ inline void FillMmsMsg(MmsMsg &msg, DataCursor &cursor, uint8_t messageType)
     }
 }
 
-inline std::vector<uint8_t> EncodeBodyPart(DataCursor &cursor)
-{
-    MmsBodyPart bodyPart = MakeBodyPart(cursor);
-    MmsEncodeBuffer encodeBuffer;
-    bodyPart.EncodeMmsBodyPart(encodeBuffer);
-    return ReadEncodedBytes(encodeBuffer);
-}
-
-inline std::vector<uint8_t> EncodeContentType(DataCursor &cursor)
-{
-    MmsContentType contentType = MakeContentType(cursor);
-    MmsEncodeBuffer encodeBuffer;
-    contentType.EncodeMmsBodyPartContentType(encodeBuffer);
-    return ReadEncodedBytes(encodeBuffer);
-}
-
-inline std::vector<uint8_t> EncodeMmsMessageToBytes(MmsMsg &msg, uint32_t &len);
-
-inline std::vector<uint8_t> EncodeMmsMessage(DataCursor &cursor, uint8_t messageType)
-{
-    MmsMsg msg;
-    FillMmsMsg(msg, cursor, messageType);
-    uint32_t len = EMPTY_SIZE;
-    return EncodeMmsMessageToBytes(msg, len);
-}
+static_assert(sizeof(&FillMmsMsg) >= MIN_BUFFER_SIZE);
 
 inline std::vector<uint8_t> EncodeMmsMessageToBytes(MmsMsg &msg, uint32_t &len)
 {
@@ -570,6 +556,8 @@ inline std::vector<uint8_t> EncodeMmsMessageToBytes(MmsMsg &msg, uint32_t &len)
     }
     return CopyRawBytes(encoded, len);
 }
+
+static_assert(sizeof(&EncodeMmsMessageToBytes) >= MIN_BUFFER_SIZE);
 } // namespace SmsMmsFuzz
 } // namespace Telephony
 } // namespace OHOS

@@ -32,6 +32,8 @@ static void QueryHeader(MmsHeader &header)
     header.GetHeaderContentType();
     header.GetSmilFileName(textValue);
     header.IsHaveBody();
+    addresses.clear();
+    textValue.clear();
 }
 
 static void RunMmsHeaderFuzz(const uint8_t *data, size_t size)
@@ -50,14 +52,16 @@ static void RunMmsHeaderFuzz(const uint8_t *data, size_t size)
     QueryHeader(header);
 
     MmsEncodeBuffer encodeBuffer;
-    header.EncodeMmsHeader(encodeBuffer);
-    auto decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
     MmsHeader decoded;
-    decoded.DecodeMmsHeader(*decodeBuffer);
-    QueryHeader(decoded);
+    if (header.EncodeMmsHeader(encodeBuffer)) {
+        auto decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
+        decoded.DecodeMmsHeader(*decodeBuffer);
+        QueryHeader(decoded);
+    }
 
     auto rawDecodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE));
     decoded.DecodeMmsHeader(*rawDecodeBuffer);
+    text.clear();
 }
 } // namespace Telephony
 } // namespace OHOS
