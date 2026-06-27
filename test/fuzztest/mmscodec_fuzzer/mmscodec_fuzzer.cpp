@@ -94,15 +94,13 @@ std::unique_ptr<char[]> MakeBuffer(const uint8_t *data, size_t size, uint32_t &l
     return buffer;
 }
 
-MmsDecodeBuffer MakeDecodeBuffer(const uint8_t *data, size_t size)
+void WriteDecodeBuffer(MmsDecodeBuffer &decodeBuffer, const uint8_t *data, size_t size)
 {
     uint32_t len = 0;
     auto buffer = MakeBuffer(data, size, len);
-    MmsDecodeBuffer decodeBuffer;
     if (buffer != nullptr) {
         decodeBuffer.WriteDataBuffer(std::move(buffer), len);
     }
-    return decodeBuffer;
 }
 
 void FuzzMmsBuffer(const uint8_t *data, size_t size)
@@ -124,7 +122,8 @@ void FuzzMmsBuffer(const uint8_t *data, size_t size)
 
 void FuzzMmsDecodeBuffer(const uint8_t *data, size_t size)
 {
-    MmsDecodeBuffer decodeBuffer = MakeDecodeBuffer(data, size);
+    MmsDecodeBuffer decodeBuffer;
+    WriteDecodeBuffer(decodeBuffer, data, size);
     uint8_t oneByte = 0;
     uint8_t shortLen = 0;
     uint8_t shortInteger = 0;
@@ -213,11 +212,14 @@ void FuzzContentParamAndType(const uint8_t *data, size_t size)
 
     int32_t contentLength = 0;
     int32_t valueLength = static_cast<int32_t>(size % MAX_READ_LEN);
-    MmsDecodeBuffer contentTypeBuffer = MakeDecodeBuffer(data, size);
+    MmsDecodeBuffer contentTypeBuffer;
+    WriteDecodeBuffer(contentTypeBuffer, data, size);
     contentType.DecodeMmsContentType(contentTypeBuffer, contentLength);
-    MmsDecodeBuffer generalFormBuffer = MakeDecodeBuffer(data, size);
+    MmsDecodeBuffer generalFormBuffer;
+    WriteDecodeBuffer(generalFormBuffer, data, size);
     contentType.DecodeMmsCTGeneralForm(generalFormBuffer, contentLength);
-    MmsDecodeBuffer paramBuffer = MakeDecodeBuffer(data, size);
+    MmsDecodeBuffer paramBuffer;
+    WriteDecodeBuffer(paramBuffer, data, size);
     contentType.DecodeParameter(paramBuffer, valueLength);
     MmsEncodeBuffer encodeBuffer;
     contentType.EncodeTextField(encodeBuffer);
@@ -244,7 +246,8 @@ void FuzzAddressAndEncodeString(const uint8_t *data, size_t size)
     std::string outText;
     encodeString.GetEncodeString(outText);
     MmsEncodeString copyEncodeString(encodeString);
-    MmsDecodeBuffer decodeBuffer = MakeDecodeBuffer(data, size);
+    MmsDecodeBuffer decodeBuffer;
+    WriteDecodeBuffer(decodeBuffer, data, size);
     encodeString.DecodeEncodeString(decodeBuffer);
     MmsEncodeBuffer encodeBuffer;
     encodeString.EncodeEncodeString(encodeBuffer);
@@ -254,7 +257,8 @@ void FuzzMmsBodyPart(const uint8_t *data, size_t size, const MmsAttachment &atta
     const std::string &text)
 {
     MmsBodyPart bodyPart;
-    bodyPart.SetAttachment(attachment);
+    MmsAttachment copyAttachment(attachment);
+    bodyPart.SetAttachment(copyAttachment);
     bodyPart.SetSmilFile(size % BOOL_MOD == 0);
     bodyPart.SetContentType(text);
     bodyPart.SetContentId(text);
@@ -272,13 +276,16 @@ void FuzzMmsBodyPart(const uint8_t *data, size_t size, const MmsAttachment &atta
     bodyPart.ReadBodyPartBuffer(len);
     MmsBodyPart copyBodyPart(bodyPart);
     copyBodyPart = bodyPart;
-    MmsDecodeBuffer decodeBuffer = MakeDecodeBuffer(data, size);
     uint32_t headerLen = static_cast<uint32_t>(size % MAX_READ_LEN);
-    bodyPart.DecodePartHeader(decodeBuffer, headerLen);
-    decodeBuffer = MakeDecodeBuffer(data, size);
-    bodyPart.DecodePartBody(decodeBuffer, headerLen);
-    decodeBuffer = MakeDecodeBuffer(data, size);
-    bodyPart.DecodePart(decodeBuffer, headerLen);
+    MmsDecodeBuffer partHeaderBuffer;
+    WriteDecodeBuffer(partHeaderBuffer, data, size);
+    bodyPart.DecodePartHeader(partHeaderBuffer, headerLen);
+    MmsDecodeBuffer partBodyBuffer;
+    WriteDecodeBuffer(partBodyBuffer, data, size);
+    bodyPart.DecodePartBody(partBodyBuffer, headerLen);
+    MmsDecodeBuffer partBuffer;
+    WriteDecodeBuffer(partBuffer, data, size);
+    bodyPart.DecodePart(partBuffer, headerLen);
     MmsEncodeBuffer encodeBuffer;
     bodyPart.EncodeMmsBodyPart(encodeBuffer);
 }
@@ -296,17 +303,22 @@ void FuzzBodyPartAndHeader(const uint8_t *data, size_t size, const MmsAttachment
     partHeader.GetContentLocation(outText);
     partHeader.GetContentDisposition(outText);
     partHeader.GetContentTransferEncoding(outText);
-    MmsDecodeBuffer decodeBuffer = MakeDecodeBuffer(data, size);
     uint32_t headerLen = static_cast<uint32_t>(size % MAX_READ_LEN);
-    partHeader.DecodeWellKnownHeader(decodeBuffer, headerLen);
-    decodeBuffer = MakeDecodeBuffer(data, size);
-    partHeader.DecodeApplicationHeader(decodeBuffer, headerLen);
-    decodeBuffer = MakeDecodeBuffer(data, size);
-    partHeader.DecodeContentLocation(decodeBuffer, headerLen);
-    decodeBuffer = MakeDecodeBuffer(data, size);
-    partHeader.DecodeContentId(decodeBuffer, headerLen);
-    decodeBuffer = MakeDecodeBuffer(data, size);
-    partHeader.DecodeContentDisposition(decodeBuffer, headerLen);
+    MmsDecodeBuffer wellKnownBuffer;
+    WriteDecodeBuffer(wellKnownBuffer, data, size);
+    partHeader.DecodeWellKnownHeader(wellKnownBuffer, headerLen);
+    MmsDecodeBuffer applicationBuffer;
+    WriteDecodeBuffer(applicationBuffer, data, size);
+    partHeader.DecodeApplicationHeader(applicationBuffer, headerLen);
+    MmsDecodeBuffer contentLocationBuffer;
+    WriteDecodeBuffer(contentLocationBuffer, data, size);
+    partHeader.DecodeContentLocation(contentLocationBuffer, headerLen);
+    MmsDecodeBuffer contentIdBuffer;
+    WriteDecodeBuffer(contentIdBuffer, data, size);
+    partHeader.DecodeContentId(contentIdBuffer, headerLen);
+    MmsDecodeBuffer contentDispositionBuffer;
+    WriteDecodeBuffer(contentDispositionBuffer, data, size);
+    partHeader.DecodeContentDisposition(contentDispositionBuffer, headerLen);
     MmsEncodeBuffer encodeBuffer;
     partHeader.EncodeContentLocation(encodeBuffer);
     partHeader.EncodeContentId(encodeBuffer);
@@ -378,8 +390,9 @@ void FuzzHeaderAndBody(const uint8_t *data, size_t size)
     header.GetStringValue(field, stringValue);
     header.GetSmilFileName(stringValue);
     header.IsHaveBody();
-    MmsDecodeBuffer decodeBuffer = MakeDecodeBuffer(data, size);
-    header.DecodeMmsHeader(decodeBuffer);
+    MmsDecodeBuffer headerBuffer;
+    WriteDecodeBuffer(headerBuffer, data, size);
+    header.DecodeMmsHeader(headerBuffer);
     MmsEncodeBuffer encodeBuffer;
     header.EncodeMmsHeader(encodeBuffer);
 
@@ -393,10 +406,12 @@ void FuzzHeaderAndBody(const uint8_t *data, size_t size)
     body.IsBodyPartExist(bodyPart);
     std::vector<MmsBodyPart> bodyParts;
     body.GetMmsBodyPart(bodyParts);
-    decodeBuffer = MakeDecodeBuffer(data, size);
-    body.DecodeMultipart(decodeBuffer);
-    decodeBuffer = MakeDecodeBuffer(data, size);
-    body.DecodeMmsBody(decodeBuffer, header);
+    MmsDecodeBuffer multipartBuffer;
+    WriteDecodeBuffer(multipartBuffer, data, size);
+    body.DecodeMultipart(multipartBuffer);
+    MmsDecodeBuffer bodyBuffer;
+    WriteDecodeBuffer(bodyBuffer, data, size);
+    body.DecodeMmsBody(bodyBuffer, header);
     body.EncodeMmsHeaderContentType(header, encodeBuffer);
     body.EncodeMmsBody(encodeBuffer);
 }
