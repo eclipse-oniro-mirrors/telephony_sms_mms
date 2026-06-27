@@ -35,6 +35,7 @@ ohos_fuzztest("SmsServiceManagerClientFuzzTest") {
   deps = [
     "$SMS_MMS_SOURCE_DIR:tel_sms_mms",
     "$SMS_MMS_SOURCE_DIR/frameworks/native:tel_sms_mms_api",
+    "$SMS_MMS_SOURCE_DIR/frameworks/native/sms:sms_native_source",
   ]
 
   external_deps = [
@@ -49,6 +50,7 @@ ohos_fuzztest("SmsServiceManagerClientFuzzTest") {
     "hilog:libhilog",
     "ipc:ipc_single",
     "safwk:system_ability_fwk",
+    "samgr:samgr_proxy",
   ]
   defines = [
     "TELEPHONY_LOG_TAG = \"SmsMmsFuzzTest\"",
