@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Huawei Device Co., Ltd.
+ * Copyright (c) 2025 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -54,11 +54,8 @@ constexpr char ENCODED_DEST[] = "encoded";
 constexpr char SMSC_ADDRESS[] = "+8613800000000";
 constexpr char IMS_FORMAT[] = "3gpp";
 
-// FAKE_STUB_G.FUN_01_SUPPRESS_START
 class FakeSmsInterfaceStub : public SmsInterfaceStub {
 public:
-    // The following overrides implement the SmsInterfaceStub interface.
-    // Parameter counts are dictated by the base class and cannot be reduced.
     int32_t SendMessage(int32_t slotId, const std::u16string desAddr, const std::u16string scAddr,
         const std::u16string text, const sptr<ISendShortMessageCallback> &sendCallback,
         const sptr<IDeliveryShortMessageCallback> &deliverCallback, bool isMmsApp = true) override
@@ -210,7 +207,6 @@ public:
 
     int32_t SendMms(int32_t slotId, const std::u16string &mmsc, const std::u16string &data,
         const std::u16string &ua, const std::u16string &uaprof, int64_t &time, bool isMmsApp = false) override
-    { // FAKE_STUB_G.FUN_01_SUPPRESS_END
     {
         return TELEPHONY_ERR_SUCCESS;
     }

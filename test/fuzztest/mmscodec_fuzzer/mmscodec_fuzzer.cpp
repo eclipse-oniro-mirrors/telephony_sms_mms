@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Huawei Device Co., Ltd.
+ * Copyright (c) 2025 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -250,10 +250,42 @@ void FuzzAddressAndEncodeString(const uint8_t *data, size_t size)
     encodeString.EncodeEncodeString(encodeBuffer);
 }
 
+void FuzzMmsBodyPart(const uint8_t *data, size_t size, const MmsAttachment &attachment,
+    const std::string &text)
+{
+    MmsBodyPart bodyPart;
+    bodyPart.SetAttachment(attachment);
+    bodyPart.SetSmilFile(size % BOOL_MOD == 0);
+    bodyPart.SetContentType(text);
+    bodyPart.SetContentId(text);
+    bodyPart.SetContentLocation(text);
+    bodyPart.SetContentDisposition(text);
+    bodyPart.SetFileName(text);
+    bodyPart.IsSmilFile();
+    std::string outText;
+    bodyPart.GetContentType(outText);
+    bodyPart.GetContentId(outText);
+    bodyPart.GetContentLocation(outText);
+    bodyPart.GetContentDisposition(outText);
+    bodyPart.GetPartFileName();
+    uint32_t len = 0;
+    bodyPart.ReadBodyPartBuffer(len);
+    MmsBodyPart copyBodyPart(bodyPart);
+    copyBodyPart = bodyPart;
+    MmsDecodeBuffer decodeBuffer = MakeDecodeBuffer(data, size);
+    uint32_t headerLen = static_cast<uint32_t>(size % MAX_READ_LEN);
+    bodyPart.DecodePartHeader(decodeBuffer, headerLen);
+    decodeBuffer = MakeDecodeBuffer(data, size);
+    bodyPart.DecodePartBody(decodeBuffer, headerLen);
+    decodeBuffer = MakeDecodeBuffer(data, size);
+    bodyPart.DecodePart(decodeBuffer, headerLen);
+    MmsEncodeBuffer encodeBuffer;
+    bodyPart.EncodeMmsBodyPart(encodeBuffer);
+}
+
 void FuzzBodyPartAndHeader(const uint8_t *data, size_t size, const MmsAttachment &attachment,
     const std::string &text)
 {
-    uint32_t len = 0;
     MmsBodyPartHeader partHeader;
     partHeader.SetContentId(text);
     partHeader.SetContentLocation(text);
@@ -282,30 +314,7 @@ void FuzzBodyPartAndHeader(const uint8_t *data, size_t size, const MmsAttachment
     partHeader.EncodeContentTransferEncoding(encodeBuffer);
     partHeader.EncodeMmsBodyPartHeader(encodeBuffer);
 
-    MmsBodyPart bodyPart;
-    bodyPart.SetAttachment(attachment);
-    bodyPart.SetSmilFile(size % BOOL_MOD == 0);
-    bodyPart.SetContentType(text);
-    bodyPart.SetContentId(text);
-    bodyPart.SetContentLocation(text);
-    bodyPart.SetContentDisposition(text);
-    bodyPart.SetFileName(text);
-    bodyPart.IsSmilFile();
-    bodyPart.GetContentType(outText);
-    bodyPart.GetContentId(outText);
-    bodyPart.GetContentLocation(outText);
-    bodyPart.GetContentDisposition(outText);
-    bodyPart.GetPartFileName();
-    bodyPart.ReadBodyPartBuffer(len);
-    MmsBodyPart copyBodyPart(bodyPart);
-    copyBodyPart = bodyPart;
-    decodeBuffer = MakeDecodeBuffer(data, size);
-    bodyPart.DecodePartHeader(decodeBuffer, headerLen);
-    decodeBuffer = MakeDecodeBuffer(data, size);
-    bodyPart.DecodePartBody(decodeBuffer, headerLen);
-    decodeBuffer = MakeDecodeBuffer(data, size);
-    bodyPart.DecodePart(decodeBuffer, headerLen);
-    bodyPart.EncodeMmsBodyPart(encodeBuffer);
+    FuzzMmsBodyPart(data, size, attachment, text);
 }
 
 void FuzzAttachmentAndBodyPart(const uint8_t *data, size_t size)
