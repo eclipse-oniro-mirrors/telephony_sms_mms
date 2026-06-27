@@ -31,7 +31,8 @@ ohos_fuzztest("MmsCodecFuzzTest") {
   ]
 
   deps = [
-    "$SMS_MMS_SOURCE_DIR/frameworks/native:tel_sms_mms_api",
+    "$SMS_MMS_SOURCE_DIR/frameworks/native/mms:mms_native_source",
+    "$SMS_MMS_SOURCE_DIR/frameworks/native/sms:sms_native_source",
   ]
 
   external_deps = [
@@ -40,6 +41,7 @@ ohos_fuzztest("MmsCodecFuzzTest") {
     "access_token:libtoken_setproc",
     "c_utils:utils",
     "core_service:libtel_common",
+    "core_service:tel_core_service_api",
     "hilog:libhilog",
     "ipc:ipc_core",
     "ipc:ipc_single",
