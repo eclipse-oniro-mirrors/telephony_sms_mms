@@ -27,11 +27,10 @@
 #include "message_parcel.h"
 #include "send_short_message_callback_stub.h"
 #include "sms_interface_stub.h"
-#include "sms_mms_errors.h"
+#include "sms_service.h"
 #include "securec.h"
 #include "sms_service_ipc_interface_code.h"
 #include "string_utils.h"
-#include "telephony_errors.h"
 
 using namespace OHOS::Telephony;
 namespace OHOS {
@@ -50,174 +49,6 @@ constexpr uint32_t UNKNOWN_CODE_OFFSET = 1000;
 constexpr uint16_t DEFAULT_PORT = 9200;
 constexpr uint16_t PORT_RANGE = 4096;
 constexpr char SPECIFICATION_3GPP[] = "3gpp";
-constexpr char ENCODED_DEST[] = "encoded";
-constexpr char SMSC_ADDRESS[] = "+8613800000000";
-constexpr char IMS_FORMAT[] = "3gpp";
-
-class FakeSmsInterfaceStub : public SmsInterfaceStub {
-public:
-    int32_t SendMessage(int32_t slotId, const std::u16string desAddr, const std::u16string scAddr,
-        const std::u16string text, const sptr<ISendShortMessageCallback> &sendCallback,
-        const sptr<IDeliveryShortMessageCallback> &deliverCallback, bool isMmsApp = true) override
-    {
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t SendMessageWithoutSave(int32_t slotId, const std::u16string desAddr, const std::u16string scAddr,
-        const std::u16string text, const sptr<ISendShortMessageCallback> &sendCallback,
-        const sptr<IDeliveryShortMessageCallback> &deliverCallback) override
-    {
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t SendMessage(int32_t slotId, const std::u16string desAddr, const std::u16string scAddr, uint16_t port,
-        const uint8_t *data, uint16_t dataLen, const sptr<ISendShortMessageCallback> &sendCallback,
-        const sptr<IDeliveryShortMessageCallback> &deliverCallback) override
-    {
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t SetSmscAddr(int32_t slotId, const std::u16string &scAddr) override
-    {
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t GetSmscAddr(int32_t slotId, std::u16string &smscAddress) override
-    {
-        smscAddress = StringUtils::ToUtf16(SMSC_ADDRESS);
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t AddSimMessage(
-        int32_t slotId, const std::u16string &smsc, const std::u16string &pdu, SimMessageStatus status) override
-    {
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t DelSimMessage(int32_t slotId, uint32_t msgIndex) override
-    {
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t UpdateSimMessage(int32_t slotId, uint32_t msgIndex, SimMessageStatus newStatus,
-        const std::u16string &pdu, const std::u16string &smsc) override
-    {
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t GetAllSimMessages(int32_t slotId, std::vector<ShortMessage> &message) override
-    {
-        message.emplace_back();
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t SetCBConfig(int32_t slotId, bool enable, uint32_t fromMsgId, uint32_t toMsgId, uint8_t netType) override
-    {
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t SetCBConfigList(int32_t slotId, const std::vector<int32_t> &messageIds, int32_t ranType) override
-    {
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    bool SetImsSmsConfig(int32_t slotId, int32_t enable) override
-    {
-        return (enable % ENABLE_MOD) == 0;
-    }
-
-    int32_t SetDefaultSmsSlotId(int32_t slotId) override
-    {
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t GetDefaultSmsSlotId() override
-    {
-        return VALID_SLOT_ID;
-    }
-
-    int32_t GetDefaultSmsSimId(int32_t &simId) override
-    {
-        simId = VALID_SLOT_ID;
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t SplitMessage(const std::u16string &message, std::vector<std::u16string> &splitMessage) override
-    {
-        splitMessage.emplace_back(message);
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t GetSmsSegmentsInfo(int32_t slotId, const std::u16string &message, bool force7BitCode,
-        SmsSegmentsInfo &info) override
-    {
-        info.msgSegCount = 1;
-        info.msgEncodingCount = static_cast<int32_t>(message.size());
-        info.msgRemainCount = 0;
-        info.msgCodeScheme = SmsSegmentsInfo::SmsSegmentCodeScheme::SMS_ENCODING_7BIT;
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t IsImsSmsSupported(int32_t slotId, bool &isSupported) override
-    {
-        isSupported = true;
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t GetImsShortMessageFormat(std::u16string &format) override
-    {
-        format = StringUtils::ToUtf16(IMS_FORMAT);
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t GetSmsShortCodeType(int32_t slotId, const std::string &desAddr, int32_t &smsShortCodeType) override
-    {
-        smsShortCodeType = 0;
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    bool HasSmsCapability() override
-    {
-        return true;
-    }
-
-    int32_t CreateMessage(std::string pdu, std::string specification, ShortMessage &message) override
-    {
-        return specification.empty() ? TELEPHONY_ERR_ARGUMENT_INVALID : TELEPHONY_ERR_SUCCESS;
-    }
-
-    bool GetBase64Encode(std::string src, std::string &dest) override
-    {
-        dest = ENCODED_DEST;
-        return !src.empty();
-    }
-
-    bool GetBase64Decode(std::string src, std::string &dest) override
-    {
-        dest = src;
-        return !src.empty();
-    }
-
-    bool GetEncodeStringFunc(
-        std::string &encodeString, uint32_t charset, uint32_t valLength, std::string strEncodeString) override
-    {
-        encodeString = strEncodeString;
-        return valLength == strEncodeString.length();
-    }
-
-    int32_t SendMms(int32_t slotId, const std::u16string &mmsc, const std::u16string &data,
-        const std::u16string &ua, const std::u16string &uaprof, int64_t &time, bool isMmsApp = false) override
-    {
-        return TELEPHONY_ERR_SUCCESS;
-    }
-
-    int32_t DownloadMms(int32_t slotId, const std::u16string &mmsc, std::u16string &data,
-        const std::u16string &ua, const std::u16string &uaprof) override
-    {
-        data = mmsc;
-        return TELEPHONY_ERR_SUCCESS;
-    }
-};
 
 std::string MakeString(const uint8_t *data, size_t size)
 {
@@ -437,14 +268,14 @@ void WriteCodecParcel(MessageParcel &parcel, const uint8_t *data, size_t size, c
     }
 }
 
-void CallOnRemoteRequest(FakeSmsInterfaceStub &stub, uint32_t code, MessageParcel &parcel)
+void CallOnRemoteRequest(SmsInterfaceStub &stub, uint32_t code, MessageParcel &parcel)
 {
     MessageParcel reply;
     MessageOption option;
     stub.OnRemoteRequest(code, parcel, reply, option);
 }
 
-void FuzzDescriptorAndUnknownCode(FakeSmsInterfaceStub &stub, const uint8_t *data, size_t size)
+void FuzzDescriptorAndUnknownCode(SmsInterfaceStub &stub, const uint8_t *data, size_t size)
 {
     MessageParcel badDescriptorParcel;
     badDescriptorParcel.WriteInterfaceToken(u"bad.descriptor");
@@ -456,7 +287,7 @@ void FuzzDescriptorAndUnknownCode(FakeSmsInterfaceStub &stub, const uint8_t *dat
     CallOnRemoteRequest(stub, code + MakeUint32(data, size), unknownCodeParcel);
 }
 
-void FuzzMessageDispatch(FakeSmsInterfaceStub &stub, const uint8_t *data, size_t size, const std::u16string &text)
+void FuzzMessageDispatch(SmsInterfaceStub &stub, const uint8_t *data, size_t size, const std::u16string &text)
 {
     MessageParcel textParcel;
     WriteTextMessageParcel(textParcel, text, VALID_SLOT_ID);
@@ -472,7 +303,7 @@ void FuzzMessageDispatch(FakeSmsInterfaceStub &stub, const uint8_t *data, size_t
     CallOnRemoteRequest(stub, static_cast<uint32_t>(SmsServiceInterfaceCode::DATA_BASED_SMS_DELIVERY), dataParcel);
 }
 
-void FuzzSimDispatch(FakeSmsInterfaceStub &stub, const uint8_t *data, size_t size, const std::u16string &text)
+void FuzzSimDispatch(SmsInterfaceStub &stub, const uint8_t *data, size_t size, const std::u16string &text)
 {
     MessageParcel addParcel;
     WriteSimMessageParcel(addParcel, text, MakeUint32(data, size) % SIM_STATUS_MOD);
@@ -491,7 +322,7 @@ void FuzzSimDispatch(FakeSmsInterfaceStub &stub, const uint8_t *data, size_t siz
     CallOnRemoteRequest(stub, static_cast<uint32_t>(SmsServiceInterfaceCode::SET_CB_CONFIG_LIST), longCbListParcel);
 }
 
-void FuzzCommonDispatch(FakeSmsInterfaceStub &stub, const uint8_t *data, size_t size, const std::u16string &text)
+void FuzzCommonDispatch(SmsInterfaceStub &stub, const uint8_t *data, size_t size, const std::u16string &text)
 {
     std::vector<SmsServiceInterfaceCode> codes = {
         SmsServiceInterfaceCode::SET_SMSC_ADDRESS,
@@ -518,7 +349,7 @@ void FuzzCommonDispatch(FakeSmsInterfaceStub &stub, const uint8_t *data, size_t 
     }
 }
 
-void FuzzCodecDispatch(FakeSmsInterfaceStub &stub, const uint8_t *data, size_t size, const std::u16string &text)
+void FuzzCodecDispatch(SmsInterfaceStub &stub, const uint8_t *data, size_t size, const std::u16string &text)
 {
     std::vector<SmsServiceInterfaceCode> codes = {
         SmsServiceInterfaceCode::CREATE_MESSAGE,
@@ -550,7 +381,11 @@ void DoSmsInterfaceStubFuzzTest(const uint8_t *data, size_t size)
         return;
     }
 
-    FakeSmsInterfaceStub stub;
+    auto service = DelayedSingleton<SmsService>::GetInstance();
+    if (service == nullptr) {
+        return;
+    }
+    SmsInterfaceStub &stub = *service;
     std::u16string text = MakeString16(data, size);
     FuzzDescriptorAndUnknownCode(stub, data, size);
     FuzzMessageDispatch(stub, data, size, text);
