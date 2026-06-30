@@ -224,9 +224,6 @@ CdmaSmsBroadcastMessage::CdmaSmsBroadcastMessage(CdmaBroadCastMsg &msg, SmsReadB
                 return;
             }
             parameter_.back()->Decode(pdu);
-            if (parameter_.size() > 0) {
-                parameter_[parameter_.size() - 1]->Decode(pdu);
-            }
             pdu.SetIndex(index);
         } else if (id == CdmaSmsParameterRecord::BEARER_DATA) {
             uint16_t index = pdu.GetIndex();
