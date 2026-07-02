@@ -517,6 +517,10 @@ std::shared_ptr<SpecialSmsIndication> CdmaSmsMessage::GetSpecialSmsInd()
 
 bool CdmaSmsMessage::IsStatusReport() const
 {
+    if (transMsg_ == nullptr) {
+        TELEPHONY_LOGE("transMsg_ is nullptr");
+        return false;
+    }
     return (transMsg_->data.p2p.telesvcMsg.type == TeleserviceMsgType::DELIVERY_ACK);
 }
 
