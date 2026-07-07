@@ -204,7 +204,7 @@ bool MmsPersistHelper::QueryMmsPdu(const std::string &dbUrl)
         }
         // LCOV_EXCL_STOP
         for (size_t i = 0; i + 1 < blobValue.size(); i = i + SLIDE_STEP) {
-            char pduChar = (blobValue[i] & HEX_VALUE_0F) | (blobValue[i + 1] & HEX_VALUE_F0);
+            unsigned char pduChar = (blobValue[i] & HEX_VALUE_0F) | (blobValue[i + 1] & HEX_VALUE_F0);
             mmsPdu += static_cast<char>(pduChar);
         }
         TELEPHONY_LOGI("blob len:%{public}zu, ", blobValue.size());
