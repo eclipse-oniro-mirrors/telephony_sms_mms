@@ -958,6 +958,29 @@ HWTEST_F(MmsGtest, MmsEncodeString_0001, Function | MediumTest | Level1)
 }
 
 /**
+ * @tc.number   Telephony_SmsMmsGtest_MmsEncodeString_0002
+ * @tc.name     Test MmsEncodeString decode when first byte is 0x00
+ * @tc.desc     Function test - boundary value test for compatibility fix
+ */
+HWTEST_F(MmsGtest, MmsEncodeString_0002, Function | MediumTest | Level1)
+{
+    TELEPHONY_LOGI("TelSMSMMSTest::MmsEncodeString_0002 -->");
+    MmsEncodeString mmsEncodeString;
+    MmsDecodeBuffer decodeBuffer;
+    
+    std::unique_ptr<char[]> inBuff = std::make_unique<char[]>(1);
+    inBuff[0] = 0x00;
+    decodeBuffer.WriteDataBuffer(std::move(inBuff), 1);
+    
+    bool ret = mmsEncodeString.DecodeEncodeString(decodeBuffer);
+    EXPECT_EQ(true, ret);
+    
+    std::string result;
+    mmsEncodeString.GetEncodeString(result);
+    EXPECT_EQ(result, "");
+}
+
+/**
  * @tc.number   Telephony_SmsMmsGtest_MmsHeaderCateg_0001
  * @tc.name     Test MmsHeaderCateg
  * @tc.desc     Function test
