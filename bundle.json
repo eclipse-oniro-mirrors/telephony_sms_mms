@@ -64,7 +64,8 @@
                 "safwk",
                 "samgr",
                 "protobuf",
-                "telephony_data"
+                "telephony_data",
+                "taihe_ffi_gen"
             ],
             "third_party": [
             ]
