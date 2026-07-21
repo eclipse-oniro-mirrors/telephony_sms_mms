@@ -30,7 +30,7 @@ constexpr static int32_t CB_RANGE_LIST_MAX_SIZE = 256;
 static int32_t SMS_SHORT_CODE_TYPE_UNKNOWN = -1;
 static inline bool IsValidSlotId(int32_t slotId)
 {
-    return ((slotId >= DEFAULT_SIM_SLOT_ID) && (slotId < SIM_SLOT_COUNT));
+    return ((slotId >= DEFAULT_SIM_SLOT_ID) && (slotId < SIM_SLOT_COUNT_MD));
 }
 
 SmsInterfaceStub::SmsInterfaceStub()
@@ -110,7 +110,7 @@ void SmsInterfaceStub::InitModule()
     }
     bInitModule = true;
     std::lock_guard<std::mutex> lock(mutex_);
-    for (int32_t slotId = 0; slotId < SIM_SLOT_COUNT; ++slotId) {
+    for (int32_t slotId = 0; slotId < SIM_SLOT_COUNT_MD; ++slotId) {
         slotSmsInterfaceManagerMap_[slotId] = std::make_shared<SmsInterfaceManager>(slotId);
         if (slotSmsInterfaceManagerMap_[slotId] == nullptr) {
             TELEPHONY_LOGE("SmsInterfaceStub InitModule slotSmsInterfaceManagerMap_[%{public}d] is nullptr", slotId);
