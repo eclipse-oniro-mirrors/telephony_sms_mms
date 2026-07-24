@@ -434,7 +434,7 @@ void CdmaSmsMessage::AnalsisHeader(const SmsTeleSvcUserData &userData)
         return;
     }
 
-    if (bHeaderInd_ && userData.userData.headerCnt > 0 && userData.userData.headerCnt <= 7) {
+    if (bHeaderInd_ && userData.userData.headerCnt > 0 && userData.userData.headerCnt <= MAX_UD_HEADER_NUM) {
         userHeaders_.clear();
         for (int i = 0; i < userData.userData.headerCnt; i++) {
             userHeaders_.push_back(userData.userData.header[i]);
