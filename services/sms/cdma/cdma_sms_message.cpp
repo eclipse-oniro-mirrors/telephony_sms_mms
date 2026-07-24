@@ -434,7 +434,7 @@ void CdmaSmsMessage::AnalsisHeader(const SmsTeleSvcUserData &userData)
         return;
     }
 
-    if (bHeaderInd_ && userData.userData.headerCnt > 0) {
+    if (bHeaderInd_ && userData.userData.headerCnt > 0 && userData.userData.headerCnt <= MAX_UD_HEADER_NUM) {
         userHeaders_.clear();
         for (int i = 0; i < userData.userData.headerCnt; i++) {
             userHeaders_.push_back(userData.userData.header[i]);
@@ -517,7 +517,7 @@ std::shared_ptr<SpecialSmsIndication> CdmaSmsMessage::GetSpecialSmsInd()
 
 bool CdmaSmsMessage::IsStatusReport() const
 {
-    if (transMsg_ == nullptr) {
+    if (transMsg_ == nullptr || transMsg_->type != CdmaTransportMsgType::P2P) {
         TELEPHONY_LOGE("transMsg_ is nullptr");
         return false;
     }

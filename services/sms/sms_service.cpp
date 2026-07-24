@@ -654,7 +654,7 @@ bool SmsService::SetImsSmsConfig(int32_t slotId, int32_t enable)
 {
     if (!TelephonyPermission::CheckCallerIsSystemApp()) {
         TELEPHONY_LOGE("Non-system applications use system APIs!");
-        return TELEPHONY_ERR_ILLEGAL_USE_OF_SYSTEM_API;
+        return false;
     }
     if (!TelephonyPermission::CheckPermission(Permission::SET_TELEPHONY_STATE)) {
         TELEPHONY_LOGE("Check permission failed.");
