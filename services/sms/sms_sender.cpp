@@ -463,6 +463,9 @@ void SmsSender::OnRilAdapterHostDied()
 
 void SmsSender::CharArrayToString(const uint8_t *data, uint32_t dataLen, std::string &dataStr)
 {
+    if (data == nullptr) {
+        return;
+    }
     uint32_t indexData = 0;
     while (indexData < dataLen) {
         dataStr += data[indexData];

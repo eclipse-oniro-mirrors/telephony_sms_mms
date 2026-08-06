@@ -1509,6 +1509,20 @@ HWTEST_F(BranchSmsTest, GsmSmsSender_0001, Function | MediumTest | Level1)
     EXPECT_TRUE(gsmSmsSender->SetPduInfo(smsIndexer, gsmSmsMessage, isMore));
 }
 
+/**
+* @tc.number   GsmSmsSender_CharArrayToString_NullData
+* @tc.name     Test GsmSmsSender CharArrayToString
+* @tc.desc     Function dstStr is empty when data is nullptr
+*/
+HWTEST_F(BranchSmsTest, GsmSmsSender_CharArrayToString_NullData, Function | MediumTest | Level1)
+{
+    std::function<void(std::shared_ptr<SmsSendIndexer>)> sendRetryFun = nullptr;
+    auto gsmSmsSender = std::make_shared<GsmSmsSender>(INVALID_SLOTID, sendRetryFun);
+    std::string dstStr = "";
+    gsmSmsSender->CharArrayToString(nullptr, 1, dstStr);
+    EXPECT_TRUE(dstStr.empty());
+}
+
 #ifdef SMS_MMS_SATELLITE
 /**
  * @tc.number   Telephony_SmsMmsGtest_SatelliteSmsCallback_0001
@@ -2119,7 +2133,7 @@ HWTEST_F(BranchSmsTest, GsmSmsSender_0002, Function | MediumTest | Level1)
     int32_t dataBaseId = 0;
     gsmSmsSender->TextBasedSmsSplitDelivery(desAddr, scAddr, splits, DataCodingScheme::DATA_CODING_7BIT, false,
         nullptr, gsmSmsMessage, sendCallback, deliveryCallback, dataBaseId, false);
-    splits[0].encodeData.resize(MAX_USER_DATA_LEN + 2);
+    splits[0].encodeData.resize(MAX_USER_DATA_LEN + 1);
     gsmSmsSender->TextBasedSmsSplitDelivery(desAddr, scAddr, splits, DataCodingScheme::DATA_CODING_7BIT, false,
         nullptr, gsmSmsMessage, sendCallback, deliveryCallback, dataBaseId, false);
     uint8_t msgRef8bit = 0;
