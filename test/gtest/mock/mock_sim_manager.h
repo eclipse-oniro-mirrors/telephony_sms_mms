@@ -51,6 +51,7 @@ public:
     MOCK_METHOD1(UpdateOperatorConfigs, int32_t(int32_t));
     MOCK_METHOD1(GetRadioProtocolTech, int32_t(int32_t));
     MOCK_METHOD1(GetRadioProtocol, void(int32_t));
+    MOCK_METHOD1(GetRadioProtocolSlotIdByModemId, int32_t(int32_t));
     MOCK_METHOD1(GetDsdsMode, int32_t(int32_t &));
     MOCK_METHOD1(SetDsdsMode, int32_t(int32_t));
     MOCK_METHOD1(GetLocaleFromDefaultSim, std::u16string(int32_t));
