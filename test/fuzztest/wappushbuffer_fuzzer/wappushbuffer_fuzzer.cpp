@@ -93,9 +93,9 @@ void DoWapPushBufferWithMyAPI(const uint8_t *data, size_t size)
 /* Fuzzer entry point */
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    bool g_atexitRegistered = false;
-    if (!g_atexitRegistered) {
-        g_atexitRegistered = true;
+    bool atexitRegistered = false;
+    if (!atexitRegistered) {
+        atexitRegistered = true;
         atexit([] { _exit(0); });
     }
     /* Run your code on data */
