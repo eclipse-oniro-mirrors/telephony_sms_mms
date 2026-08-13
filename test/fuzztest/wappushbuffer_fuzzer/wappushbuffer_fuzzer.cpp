@@ -26,7 +26,7 @@
 
 using namespace OHOS::Telephony;
 namespace OHOS {
-static int32_t SIM_COUNT = 2;
+constexpr int32_t SIM_COUNT = 2;
 
 void WapPushBuffer(const uint8_t *data, size_t size)
 {

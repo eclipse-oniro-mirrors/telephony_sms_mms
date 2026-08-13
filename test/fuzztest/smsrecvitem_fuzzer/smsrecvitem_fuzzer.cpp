@@ -39,7 +39,6 @@ namespace OHOS {
 using namespace EventFwk;
 constexpr int32_t SLOT_NUM = 2;
 bool g_flag = false;
-bool g_atexitRegistered = false;
 
 void DoRecvItemsTest(const uint8_t *data, size_t size, std::shared_ptr<SmsReceiveManager> smsReceiveManager)
 {
@@ -153,6 +152,7 @@ void DoSomethingInterestingWithMyAPI(const uint8_t *data, size_t size)
 /* Fuzzer entry point */
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
+    bool g_atexitRegistered = false;
     if (!g_atexitRegistered) {
         g_atexitRegistered = true;
         atexit([] { _exit(0); });
