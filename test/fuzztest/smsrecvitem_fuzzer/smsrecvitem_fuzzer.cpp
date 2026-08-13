@@ -19,6 +19,8 @@
 #define private public
 #define protected public
 #endif
+#include <cstdlib>
+#include <unistd.h>
 
 #include "addsmstoken_fuzzer.h"
 #include "cdma_sms_message.h"
@@ -150,6 +152,11 @@ void DoSomethingInterestingWithMyAPI(const uint8_t *data, size_t size)
 /* Fuzzer entry point */
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
+    static bool g_atexitRegistered = false;
+    if (!g_atexitRegistered) {
+        g_atexitRegistered = true;
+        atexit([] { _exit(0); });
+    }
     /* Run your code on data */
     OHOS::AddSmsTokenFuzzer token;
     OHOS::DoSomethingInterestingWithMyAPI(data, size);
