@@ -26,8 +26,7 @@
 
 using namespace OHOS::Telephony;
 namespace OHOS {
-constexpr int32_t SIM_COUNT = 2;
-bool g_atexitRegistered = false;
+static int32_t SIM_COUNT = 2;
 
 void WapPushBuffer(const uint8_t *data, size_t size)
 {
@@ -94,6 +93,7 @@ void DoWapPushBufferWithMyAPI(const uint8_t *data, size_t size)
 /* Fuzzer entry point */
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
+    bool g_atexitRegistered = false;
     if (!g_atexitRegistered) {
         g_atexitRegistered = true;
         atexit([] { _exit(0); });
