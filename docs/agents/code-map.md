@@ -134,7 +134,7 @@ RIL 上报 → GsmSmsReceiveHandler / CdmaSmsReceiveHandler::ProcessEvent（TelE
 | 任务 | 首先打开 |
 |---|---|
 | 新增或修改 JS 接口 | `interfaces/kits/js/@ohos.telephony.sms.d.ts`，`frameworks/js/napi/`，`frameworks/ets/taihe/` |
-| 新增 IPC 接口 | 见 [`boundaries.md`](boundaries.md)「新增 IPC 接口的清单」 |
+| 新增 IPC 接口 | 见 [`boundaries.md`](boundaries.md)「新增接口清单」 |
 | 发送失败、发送结果回调异常 | `sms_send_manager.cpp`、`sms_sender.cpp`、`gsm/gsm_sms_sender.cpp`、`cdma/cdma_sms_sender.cpp` |
 | 长短消息分段与合并 | 发送侧 `gsm_sms_sender.cpp` 与 `gsm/gsm_sms_message.cpp`；接收侧 `sms_receive_handler.cpp` |
 | GSM 或 CDMA PDU 编解码 | `services/sms/gsm/`、`services/sms/cdma/` |
