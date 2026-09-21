@@ -274,7 +274,6 @@ bool SmsService::InsertSession(
     sessionBucket.Put(Session::CONTENT, text);
     sessionBucket.Put(Session::CONTACTS_NUM, "1");
     sessionBucket.Put(Session::SMS_TYPE, "0");
-    sessionBucket.Put(Session::UNREAD_COUNT, "0");
     sessionBucket.Put(Session::SENDING_STATUS, "0");
     sessionBucket.Put(Session::HAS_DRAFT, "0");
     sessionBucket.Put(Session::HAS_LOCK, "0");
