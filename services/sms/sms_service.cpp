@@ -273,7 +273,9 @@ bool SmsService::InsertSession(
     sessionBucket.Put(Session::TELEPHONE, number);
     sessionBucket.Put(Session::CONTENT, text);
     sessionBucket.Put(Session::CONTACTS_NUM, "1");
-    sessionBucket.Put(Session::SMS_TYPE, "0");
+    if (isNewSession) {
+        sessionBucket.Put(Session::SMS_TYPE, "0");
+    }
     sessionBucket.Put(Session::SENDING_STATUS, "0");
     sessionBucket.Put(Session::HAS_DRAFT, "0");
     sessionBucket.Put(Session::HAS_LOCK, "0");
