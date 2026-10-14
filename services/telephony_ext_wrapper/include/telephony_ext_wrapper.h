@@ -32,11 +32,18 @@ public:
     typedef bool (*IS_CUST_ETWS_MSG)(uint16_t channle);
     typedef void (*GET_CUST_ETWS_TYPE)(uint16_t channle, uint16_t &type);
     typedef uint32_t (*GET_CBS_PDU_LENGTH)(const std::vector<unsigned char> &pdu);
+
+    /* add for booster service notify */
+    typedef void (*NOTIFY_BOOSTER_SERVICE_MSG)(int32_t slotId, int32_t serviceType, int32_t action);
  
     /* add for etws */
     IS_CUST_ETWS_MSG isCustEtwsMessage_ = nullptr;
     GET_CUST_ETWS_TYPE getCustEtwsType_ = nullptr;
     GET_CBS_PDU_LENGTH getCbsPduLength_ = nullptr;
+
+    /* add for booster service notify */
+    NOTIFY_BOOSTER_SERVICE_MSG notifyBoosterServiceMsg_ = nullptr;
+    void NotifyBoosterServiceMsg(int32_t slotId, int32_t serviceType, int32_t action);
  
 private:
     void* telephonyExtWrapperHandle_ = nullptr;
