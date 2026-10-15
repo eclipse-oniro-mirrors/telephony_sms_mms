@@ -27,7 +27,7 @@ public:
     virtual ~MmsNetworkManager() = default;
     int32_t AcquireNetwork(int32_t slotId, uint8_t requestId);
     std::shared_ptr<MmsNetworkClient> GetOrCreateHttpClient(int32_t slotId);
-    void ReleaseNetwork(uint8_t requestId, bool shouldDelayRelease);
+    void ReleaseNetwork(int32_t slotId, uint8_t requestId, bool shouldDelayRelease);
 
 private:
     std::shared_ptr<MmsNetworkClient> mmsNetworkClient_ = nullptr;

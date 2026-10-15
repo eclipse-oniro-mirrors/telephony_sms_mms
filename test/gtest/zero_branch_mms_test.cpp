@@ -1180,7 +1180,7 @@ HWTEST_F(BranchMmsTest, MmsNetworkManager_0001, Function | MediumTest | Level1)
     TELEPHONY_LOGI("TelSMSMMSTest::MmsNetworkManager_0001 -->");
     MmsNetworkManager mmsNetworkMgr;
     EXPECT_GE(mmsNetworkMgr.AcquireNetwork(0, 0), 0);
-    mmsNetworkMgr.ReleaseNetwork(0, 0);
+    mmsNetworkMgr.ReleaseNetwork(0, 0, 0);
     EXPECT_NE(mmsNetworkMgr.GetOrCreateHttpClient(0), nullptr);
 }
 

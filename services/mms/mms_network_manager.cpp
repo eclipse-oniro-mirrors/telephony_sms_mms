@@ -18,6 +18,7 @@
 #include "core_manager_inner.h"
 #include "net_conn_client.h"
 #include "net_specifier.h"
+#include "telephony_ext_wrapper.h"
 #include "telephony_log_wrapper.h"
 
 namespace OHOS {
@@ -25,9 +26,23 @@ namespace Telephony {
 using namespace NetManagerStandard;
 static constexpr uint32_t NET_REGISTER_TIMEOUT_MS = 20000;
 constexpr const char *SIMID_IDENT_PREFIX = "simId";
+/* booster service notify content */
+static constexpr int32_t BOOSTER_MSG_SERVICE_TYPE_MMS = 1;
+static constexpr int32_t BOOSTER_MSG_ACTION_START = 1;
+static constexpr int32_t BOOSTER_MSG_ACTION_STOP = 0;
+static constexpr int32_t BOOSTER_MSG_NOTIFY_SLOT_ID = 3;
+
+static void NotifyBoosterMsgForMms(int32_t slotId, int32_t action)
+{
+    if (slotId != BOOSTER_MSG_NOTIFY_SLOT_ID) {
+        return;
+    }
+    TELEPHONY_EXT_WRAPPER.NotifyBoosterServiceMsg(slotId, BOOSTER_MSG_SERVICE_TYPE_MMS, action);
+}
 
 int32_t MmsNetworkManager::AcquireNetwork(int32_t slotId, uint8_t requestId)
 {
+    NotifyBoosterMsgForMms(slotId, BOOSTER_MSG_ACTION_START);
     NetSpecifier netSpecifier;
     NetAllCapabilities netAllCapabilities;
     netAllCapabilities.netCaps_.insert(NetCap::NET_CAPABILITY_MMS);
@@ -53,9 +68,10 @@ int32_t MmsNetworkManager::AcquireNetwork(int32_t slotId, uint8_t requestId)
     return result;
 }
 
-void MmsNetworkManager::ReleaseNetwork(u_int8_t requestId, bool shouldDelayRelease)
+void MmsNetworkManager::ReleaseNetwork(int32_t slotId, uint8_t requestId, bool shouldDelayRelease)
 {
     TELEPHONY_LOGI("requestId:%{public}d,shouldDelayRelease:%{public}d", requestId, shouldDelayRelease);
+    NotifyBoosterMsgForMms(slotId, BOOSTER_MSG_ACTION_STOP);
     if (callback_ != nullptr) {
         TELEPHONY_LOGI("UnregisterNetConnCallback");
         NetConnClient ::GetInstance().UnregisterNetConnCallback(callback_);

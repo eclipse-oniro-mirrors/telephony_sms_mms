@@ -101,7 +101,7 @@ protected:
     {
         uint8_t requestId = static_cast<uint8_t>(GetNumRandom(0, 10));
         bool shouldRelease = false;
-        m_pMmsNetworkManager->ReleaseNetwork(requestId, shouldRelease);
+        m_pMmsNetworkManager->ReleaseNetwork(g_slotId, requestId, shouldRelease);
     }
 private:
     std::unique_ptr<MmsNetworkManager> m_pMmsNetworkManager;

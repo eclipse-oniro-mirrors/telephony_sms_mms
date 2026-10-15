@@ -67,14 +67,14 @@ int32_t DataRequest::ExecuteMms(const std::string &method, std::shared_ptr<MmsNe
 
     if (!networkReady_) {
         TELEPHONY_LOGE("acquire network fail");
-        mmsNetworkMgr->ReleaseNetwork(GetRequestId(), false);
+        mmsNetworkMgr->ReleaseNetwork(slotId_, GetRequestId(), false);
         return TELEPHONY_ERR_LOCAL_PTR_NULL;
     }
 
     std::string custUaprof = uaprof;
     GetMmsUserAgentProfile(custUaprof);
     int32_t executeResult = HttpRequest(slotId_, method, mmsNetworkMgr, contentUrl, pduDir, ua, custUaprof);
-    mmsNetworkMgr->ReleaseNetwork(GetRequestId(), false);
+    mmsNetworkMgr->ReleaseNetwork(slotId_, GetRequestId(), false);
     return executeResult;
 }
 

@@ -42,6 +42,11 @@ void TelephonyExtWrapper::InitTelephonyExtWrapper()
         TELEPHONY_LOGE("libtelephony_ext_service.z.so was not loaded, error: %{public}s", dlerror());
         return;
     }
+    notifyBoosterServiceMsg_ =
+        (NOTIFY_BOOSTER_SERVICE_MSG)dlsym(telephonyExtWrapperHandle_, "NotifyBoosterServiceMsg");
+    if (notifyBoosterServiceMsg_ == nullptr) {
+        TELEPHONY_LOGE("telephony ext wrapper symbol NotifyBoosterServiceMsg failed, error: %{public}s", dlerror());
+    }
     isCustEtwsMessage_ = (IS_CUST_ETWS_MSG)dlsym(telephonyExtWrapperHandle_, "IsCustEtwsMessage");
     getCustEtwsType_ = (GET_CUST_ETWS_TYPE)dlsym(telephonyExtWrapperHandle_, "GetCustEtwsType");
     getCbsPduLength_ = (GET_CBS_PDU_LENGTH)dlsym(telephonyExtWrapperHandle_, "getCbsPduLength");
@@ -50,6 +55,15 @@ void TelephonyExtWrapper::InitTelephonyExtWrapper()
         return;
     }
     TELEPHONY_LOGI("telephony ext wrapper init success");
+}
+
+void TelephonyExtWrapper::NotifyBoosterServiceMsg(int32_t slotId, int32_t serviceType, int32_t action)
+{
+    if (notifyBoosterServiceMsg_ != nullptr) {
+        notifyBoosterServiceMsg_(slotId, serviceType, action);
+        return;
+    }
+    TELEPHONY_LOGE("NotifyBoosterServiceMsg is not supported");
 }
 } // namespace Telephony
 } // namespace OHOS
