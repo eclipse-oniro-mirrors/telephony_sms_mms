@@ -151,6 +151,7 @@ public:
     MOCK_METHOD1(SaveCardFileDetectData, int32_t(const CardFileDetectData &));
     MOCK_METHOD1(GetAllSimCardInfo, int32_t(std::vector<SimCardInfo> &));
     MOCK_METHOD2(SetSpecifiedIccidBySlotId, void(int32_t, std::string &));
+    MOCK_METHOD2(UpdateDBActiveByIccId, int32_t(const std::string, int32_t));
 };
 }  // namespace Telephony
 }  // namespace OHOS
