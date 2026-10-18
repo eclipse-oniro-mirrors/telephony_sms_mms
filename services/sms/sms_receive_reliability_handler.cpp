@@ -45,7 +45,7 @@ static constexpr int64_t ONE_DAY_TOTAL_SECONDS = 86400;
 static constexpr uint16_t MAX_TPDU_DATA_LEN = 255;
 static constexpr int32_t EXPIRE_DAYS_PARA_SIZE = 128;
 static constexpr const char *SMS_EXPIRE_DAYS = "const.telephony.sms.expire.days";
-static constexpr const char *DEFAULT_EXPIRE_DAYS = "7";
+static constexpr const char *DEFAULT_EXPIRE_DAYS = "3";
 static constexpr const char *SMS_PAGE_COUNT_INVALID = "0";
 static constexpr const char *SMS_BROADCAST_SLOTID_KEY = "slotId";
 static constexpr const char *SMS_BROADCAST_PDU_KEY = "pdus";
@@ -84,13 +84,14 @@ bool SmsReceiveReliabilityHandler::DeleteExpireSmsFromDB()
 
     std::string smsExpire = GetSmsExpire();
     if (!IsValidDecValue(smsExpire)) {
-        TELEPHONY_LOGE("system property telephony.sms.expire.days not decimal");
+        TELEPHONY_LOGE("system property telephony.sms.expire.days not decimal, raw value: %{public}s",
+            smsExpire.c_str());
         smsExpire = DEFAULT_EXPIRE_DAYS;
     }
     int64_t validityDuration = std::stoi(smsExpire) * ONE_DAY_TOTAL_SECONDS;
     int64_t deadlineTime = currentTime - validityDuration;
     if (deadlineTime <= 0) {
-        TELEPHONY_LOGE("deadlineTime is negative");
+        TELEPHONY_LOGE("deadlineTime is negative, currentTime=%{public}ld, check device time sync", currentTime);
         return false;
     }
 
@@ -313,7 +314,7 @@ void SmsReceiveReliabilityHandler::DeleteMessageFormDb(const uint16_t refId, con
     const int32_t msgCount, const std::string address)
 {
     if (refId == 0 && dataBaseId == 0) {
-        TELEPHONY_LOGE("DeleteMessageFormDb fail by refId error");
+        TELEPHONY_LOGE("DeleteMessageFormDb fail by refId error, msgCount=%{public}d", msgCount);
         return;
     }
     DataShare::DataSharePredicates predicates;
@@ -322,7 +323,9 @@ void SmsReceiveReliabilityHandler::DeleteMessageFormDb(const uint16_t refId, con
         ->EqualTo(SmsSubsection::SMS_SUBSECTION_ID, std::to_string(refId))
         ->And()
         ->EqualTo(SmsSubsection::SIZE, std::to_string(msgCount));
-    DelayedSingleton<SmsPersistHelper>::GetInstance()->Delete(predicates);
+    bool ret = DelayedSingleton<SmsPersistHelper>::GetInstance()->Delete(predicates);
+    TELEPHONY_LOGI("DeleteMessageFormDb refId=%{public}d,dataBaseId=%{public}d,msgCount=%{public}d,result: %{public}d",
+        refId, dataBaseId, msgCount, ret);
 }
 
 void SmsReceiveReliabilityHandler::SendBroadcast(
