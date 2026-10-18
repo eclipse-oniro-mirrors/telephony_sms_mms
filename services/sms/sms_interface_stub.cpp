@@ -121,14 +121,16 @@ void SmsInterfaceStub::InitModule()
         TelFFRTUtils::Submit([slotId]() {
             auto reliabilityHandler = std::make_shared<SmsReceiveReliabilityHandler>(slotId);
             if (reliabilityHandler == nullptr) {
-                TELEPHONY_LOGE("reliabilityHandler nullptr");
+                TELEPHONY_LOGE("reliabilityHandler nullptr, slotId=%{public}d", slotId);
                 return;
             }
             if (!reliabilityHandler->DeleteExpireSmsFromDB()) {
+                TELEPHONY_LOGE("InitModule DeleteExpireSmsFromDB fail, skip reliability processing, slotId=%{public}d",
+                    slotId);
                 return;
             }
             if (!reliabilityHandler->CheckSmsCapable()) {
-                TELEPHONY_LOGE("sms receive capable unSupport");
+                TELEPHONY_LOGE("sms receive capable unSupport, slotId=%{public}d", slotId);
                 return;
             }
             reliabilityHandler->SmsReceiveReliabilityProcessing();
