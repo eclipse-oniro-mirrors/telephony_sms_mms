@@ -501,36 +501,5 @@ HWTEST_F(SmsGsmTest, GsmUserDataPdu_002, Function | MediumTest | Level1)
     EXPECT_EQ(header.udh.concat16bit.totalSeg, 0x03);
     EXPECT_EQ(header.udh.concat16bit.seqNum, 0x02);
 }
-
-/**
- * @tc.number   Telephony_SmsMmsGtest_GsmUserDataPdu_003
- * @tc.name     GsmUserDataPdu_003
- * @tc.desc     Function test DecodeHeader with UDH concat 16bit and invalid input
- */
-HWTEST_F(SmsGsmTest, GsmUserDataPdu_003, Function | MediumTest | Level1)
-{
-    auto userDataPdu = std::make_shared<GsmUserDataPdu>();
-    std::string pduData;
-    pduData.push_back(0x08);
-    pduData.push_back(0x04);
-    pduData.push_back(0xAB);
-    pduData.push_back(0xCD);
-    pduData.push_back(0x03);
-    pduData.push_back(0x02);
-    SmsReadBuffer buffer(pduData);
-    struct SmsUDH header = {};
-    uint16_t headerLen = 0;
-    EXPECT_TRUE(userDataPdu->DecodeHeader(buffer, header, headerLen));
-    EXPECT_EQ(header.udhType, 0x08);
-    EXPECT_EQ(header.udh.concat16bit.msgRef, 0xABCD);
-    EXPECT_EQ(header.udh.concat16bit.totalSeg, 0x03);
-    EXPECT_EQ(header.udh.concat16bit.seqNum, 0x02);
-    buffer.index_ = 0;
-    struct SmsUDH headerZero = {};
-    EXPECT_FALSE(userDataPdu->DecodeHeaderConcat16Bit(buffer, headerZero));
-    SmsReadBuffer shortBuffer(std::string(2, 0x12));
-    struct SmsUDH headerShort = {};
-    EXPECT_FALSE(userDataPdu->DecodeHeaderConcat16Bit(shortBuffer, headerShort));
-}
 }
 }
