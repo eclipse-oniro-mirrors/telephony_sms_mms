@@ -272,7 +272,7 @@ bool GsmCbGsmCodec::Decode2gCbMsg7bit(uint16_t dataLen)
         return false;
     }
     for (uint16_t i = 0; i < unpackLen; i++) {
-        messageRaw_.push_back(static_cast<char>(pageData[i]));
+        messageRaw_.push_back(static_cast<char>(pageData[offset + i]));
     }
     cbCodec_->SetCbMessageRaw(messageRaw_);
     return true;

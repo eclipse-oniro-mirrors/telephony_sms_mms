@@ -847,6 +847,31 @@ HWTEST_F(BranchCbTest, Decode2gPageParameter_0001, Function | MediumTest | Level
 }
 
 /**
+ * @tc.number   Telephony_SmsMmsGtest_Decode2gLanguagePrefix_0001
+ * @tc.name     Test GSM 7bit DCS 0001 0000 language indication
+ * @tc.desc     Function test, the "xx<CR>" prefix is skipped and the 90 text characters are kept (3GPP TS 23.038 5)
+ */
+HWTEST_F(BranchCbTest, Decode2gLanguagePrefix_0001, Function | MediumTest | Level1)
+{
+    const size_t textLen = CB_PAGE_SEPTETS - GsmCbCodec::CB_IOS639_LANG_SIZE;
+    std::string text;
+    for (size_t i = 0; i < textLen; i++) {
+        text.push_back(static_cast<char>('A' + i % 26));
+    }
+    auto cbMsg = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4010, 0x0032, 0x10, 0x11, "en\r" + text));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw(), text);
+
+    cbMsg = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4010, 0x0032, 0x10, 0x11, "en\rHi"));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw().substr(0, 2), "Hi");
+
+    cbMsg = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4010, 0x0032, 0x01, 0x11, "Hi"));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw().substr(0, 2), "Hi");
+}
+
+/**
  * @tc.number   Telephony_SmsMmsGtest_GsmCbCodecToString_0001
  * @tc.name     Test GsmCbCodecToString
  * @tc.desc     Function test
