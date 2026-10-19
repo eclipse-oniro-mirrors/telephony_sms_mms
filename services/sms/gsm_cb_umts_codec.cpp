@@ -213,7 +213,7 @@ bool GsmCbUmtsCodec::Decode3gUCS2()
     uint16_t tpduLen = dataPdu.size();
     for (uint8_t i = 0; i < cbHeader_->totalPages; ++i) {
         TELEPHONY_LOGI("cbHeader_->totalPages:%{public}d", cbHeader_->totalPages);
-        uint16_t pageLenOffset = static_cast<uint8_t>((i + 1) * MAX_PAGE_PDU_LEN + i);
+        uint16_t pageLenOffset = static_cast<uint16_t>((i + 1) * MAX_PAGE_PDU_LEN + i);
         if (pduLen <= pageLenOffset) {
             TELEPHONY_LOGE("pageLenOffset invalid.");
             messageRaw_.clear();

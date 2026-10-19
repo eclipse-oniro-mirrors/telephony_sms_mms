@@ -723,6 +723,105 @@ HWTEST_F(BranchCbTest, DecodeCbMsgDCS_0001, Function | MediumTest | Level1)
     EXPECT_EQ(dcs.codingGroup, GsmCbCodec::SMS_CBMSG_CODGRP_GENERAL_DCS);
 }
 
+namespace {
+constexpr size_t CB_PAGE_OCTETS = 82;
+constexpr size_t CB_PAGE_SEPTETS = 93;
+constexpr uint8_t CB_SEPTET_BITS = 7;
+constexpr uint8_t CB_OCTET_BITS = 8;
+constexpr uint8_t CB_GSM7_CR = 0x0D;
+
+std::vector<unsigned char> PackCbSeptets(const std::vector<uint8_t> &septets)
+{
+    std::vector<unsigned char> out((septets.size() * CB_SEPTET_BITS + CB_OCTET_BITS - 1) / CB_OCTET_BITS, 0);
+    for (size_t i = 0; i < septets.size(); i++) {
+        for (size_t bit = 0; bit < CB_SEPTET_BITS; bit++) {
+            size_t pos = i * CB_SEPTET_BITS + bit;
+            if ((septets[i] >> bit) & 0x01) {
+                out[pos / CB_OCTET_BITS] |= static_cast<unsigned char>(1 << (pos % CB_OCTET_BITS));
+            }
+        }
+    }
+    return out;
+}
+
+std::vector<unsigned char> BuildGsmCbPduWithContent(
+    uint16_t serial, uint16_t msgId, uint8_t dcs, uint8_t pageParam, std::vector<unsigned char> content)
+{
+    std::vector<unsigned char> pdu = { static_cast<unsigned char>(serial >> CB_OCTET_BITS),
+        static_cast<unsigned char>(serial), static_cast<unsigned char>(msgId >> CB_OCTET_BITS),
+        static_cast<unsigned char>(msgId), dcs, pageParam };
+    content.resize(CB_PAGE_OCTETS, 0x00);
+    pdu.insert(pdu.end(), content.begin(), content.end());
+    return pdu;
+}
+
+// GSM CBS page, 93 GSM 7bit characters padded with CR (3GPP TS 23.041 9.4.1.2.5)
+std::vector<unsigned char> BuildGsmCbPdu(
+    uint16_t serial, uint16_t msgId, uint8_t dcs, uint8_t pageParam, const std::string &text)
+{
+    std::vector<uint8_t> septets(text.begin(), text.end());
+    septets.resize(CB_PAGE_SEPTETS, CB_GSM7_CR);
+    return BuildGsmCbPduWithContent(serial, msgId, dcs, pageParam, PackCbSeptets(septets));
+}
+
+// UMTS CBS message, every page is 82 octets plus the CBS-Message-Information-Length octet (3GPP TS 23.041 9.4.2.2)
+std::vector<unsigned char> BuildUmtsCbPdu(
+    uint16_t msgId, uint8_t dcs, const std::vector<std::pair<std::vector<unsigned char>, uint8_t>> &pages)
+{
+    std::vector<unsigned char> pdu = { 0x01, static_cast<unsigned char>(msgId >> CB_OCTET_BITS),
+        static_cast<unsigned char>(msgId), 0x40, 0x10, dcs, static_cast<unsigned char>(pages.size()) };
+    for (auto &page : pages) {
+        std::vector<unsigned char> content = page.first;
+        content.resize(CB_PAGE_OCTETS, 0x00);
+        pdu.insert(pdu.end(), content.begin(), content.end());
+        pdu.push_back(page.second);
+    }
+    return pdu;
+}
+
+std::vector<unsigned char> Ucs2Of(const std::string &text)
+{
+    std::vector<unsigned char> out;
+    for (char c : text) {
+        out.push_back(0x00);
+        out.push_back(static_cast<unsigned char>(c));
+    }
+    return out;
+}
+
+std::string BodyOf(const std::shared_ptr<GsmCbCodec> &cbMsg)
+{
+    std::string body;
+    if (cbMsg != nullptr) {
+        cbMsg->ConvertToUTF8(cbMsg->GetCbMessageRaw(), body);
+    }
+    return body;
+}
+} // namespace
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_Decode3gUCS2PageOffset_0001
+ * @tc.name     Test Decode3gUCS2 with 4 and 15 pages
+ * @tc.desc     Function test, the length octet of page i is at 83 * i + 82 (3GPP TS 23.041 9.4.2.2.5)
+ */
+HWTEST_F(BranchCbTest, Decode3gUCS2PageOffset_0001, Function | MediumTest | Level1)
+{
+    const size_t maxPages = 15;
+    for (size_t pageCount : { static_cast<size_t>(3), static_cast<size_t>(4), maxPages }) {
+        std::vector<std::pair<std::vector<unsigned char>, uint8_t>> pages;
+        std::string expected;
+        for (size_t i = 0; i < pageCount; i++) {
+            std::string text(CB_PAGE_OCTETS / 2, static_cast<char>('A' + i));
+            pages.push_back({ Ucs2Of(text), static_cast<uint8_t>(CB_PAGE_OCTETS) });
+            expected += text;
+        }
+        auto cbMsg = GsmCbCodec::CreateCbMessage(BuildUmtsCbPdu(0x0032, 0x48, pages));
+        ASSERT_NE(cbMsg, nullptr);
+        EXPECT_EQ(cbMsg->GetCbMessageRaw().size(), pageCount * CB_PAGE_OCTETS);
+        EXPECT_EQ(BodyOf(cbMsg), expected);
+    }
+}
+
 /**
  * @tc.number   Telephony_SmsMmsGtest_GsmCbCodecToString_0001
  * @tc.name     Test GsmCbCodecToString
