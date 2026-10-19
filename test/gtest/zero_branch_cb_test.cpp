@@ -904,6 +904,89 @@ HWTEST_F(BranchCbTest, Decode3gLanguagePrefix_0001, Function | MediumTest | Leve
 }
 
 /**
+ * @tc.number   Telephony_SmsMmsGtest_CbUpdateNumber_0001
+ * @tc.name     Test a new update number of a single page message
+ * @tc.desc     Function test, the new version replaces the cached pages of the old one (3GPP TS 23.041 9.4.1.2.1)
+ */
+HWTEST_F(BranchCbTest, CbUpdateNumber_0001, Function | MediumTest | Level1)
+{
+    auto gsmSmsCbHandler = std::make_shared<GsmSmsCbHandler>(INVALID_SLOTID);
+    auto oldPage = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4010, 0x0032, 0x01, 0x12, "OLD-P1"));
+    ASSERT_NE(oldPage, nullptr);
+    EXPECT_EQ(gsmSmsCbHandler->CheckCbMessage(oldPage), 1);
+    auto newPage = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4011, 0x0032, 0x01, 0x11, "NEW"));
+    ASSERT_NE(newPage, nullptr);
+    EXPECT_EQ(gsmSmsCbHandler->CheckCbMessage(newPage), newPage->GetCbHeader()->totalPages);
+    EXPECT_EQ(gsmSmsCbHandler->cbMsgList_.size(), 1);
+    EventFwk::Want want;
+    EXPECT_TRUE(gsmSmsCbHandler->SetWantData(want, newPage));
+    std::string body = want.GetStringParam(SmsCbData::MSG_BODY);
+    EXPECT_EQ(body.substr(0, 3), "NEW");
+    EXPECT_EQ(body.find("OLD"), std::string::npos);
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbUpdateNumber_0002
+ * @tc.name     Test a new update number of a multi page message
+ * @tc.desc     Function test, the pages of the new version are assembled and delivered
+ */
+HWTEST_F(BranchCbTest, CbUpdateNumber_0002, Function | MediumTest | Level1)
+{
+    auto gsmSmsCbHandler = std::make_shared<GsmSmsCbHandler>(INVALID_SLOTID);
+    auto oldPage = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4010, 0x0032, 0x01, 0x12, "OLD-P1"));
+    auto newPage1 = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4011, 0x0032, 0x01, 0x12, "NEW-P1"));
+    auto newPage2 = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4011, 0x0032, 0x01, 0x22, "NEW-P2"));
+    ASSERT_NE(oldPage, nullptr);
+    ASSERT_NE(newPage1, nullptr);
+    ASSERT_NE(newPage2, nullptr);
+    EXPECT_EQ(gsmSmsCbHandler->CheckCbMessage(oldPage), 1);
+    EXPECT_EQ(gsmSmsCbHandler->CheckCbMessage(newPage1), 1);
+    EXPECT_EQ(gsmSmsCbHandler->CheckCbMessage(newPage2), newPage2->GetCbHeader()->totalPages);
+    EventFwk::Want want;
+    EXPECT_TRUE(gsmSmsCbHandler->SetWantData(want, newPage2));
+    std::string body = want.GetStringParam(SmsCbData::MSG_BODY);
+    EXPECT_NE(body.find("NEW-P1"), std::string::npos);
+    EXPECT_NE(body.find("NEW-P2"), std::string::npos);
+    EXPECT_EQ(body.find("OLD"), std::string::npos);
+
+    auto samePage1 = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4020, 0x0040, 0x01, 0x12, "A-P1"));
+    auto samePage2 = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4020, 0x0040, 0x01, 0x22, "A-P2"));
+    ASSERT_NE(samePage1, nullptr);
+    ASSERT_NE(samePage2, nullptr);
+    EXPECT_EQ(gsmSmsCbHandler->CheckCbMessage(samePage1), 1);
+    EXPECT_EQ(gsmSmsCbHandler->CheckCbMessage(samePage2), samePage2->GetCbHeader()->totalPages);
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbClearExpiredMessage_0001
+ * @tc.name     Test ClearExpiredMessage
+ * @tc.desc     Function test, an expired entry at index 0 is removed as well
+ */
+HWTEST_F(BranchCbTest, CbClearExpiredMessage_0001, Function | MediumTest | Level1)
+{
+    auto gsmSmsCbHandler = std::make_shared<GsmSmsCbHandler>(INVALID_SLOTID);
+    auto stale = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4010, 0x0040, 0x01, 0x12, "STALE"));
+    auto fresh = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4010, 0x0041, 0x01, 0x12, "FRESH"));
+    ASSERT_NE(stale, nullptr);
+    ASSERT_NE(fresh, nullptr);
+    EXPECT_TRUE(gsmSmsCbHandler->AddCbMessageToList(stale));
+    gsmSmsCbHandler->ClearExpiredMessage();
+    EXPECT_EQ(gsmSmsCbHandler->cbMsgList_.size(), 1);
+    gsmSmsCbHandler->cbMsgList_[0].header->recvTime -= GsmSmsCbHandler::DEFAULT_EXPIRED_TIME + 1;
+    gsmSmsCbHandler->ClearExpiredMessage();
+    EXPECT_TRUE(gsmSmsCbHandler->cbMsgList_.empty());
+
+    stale = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4010, 0x0040, 0x01, 0x12, "STALE"));
+    ASSERT_NE(stale, nullptr);
+    EXPECT_TRUE(gsmSmsCbHandler->AddCbMessageToList(stale));
+    EXPECT_TRUE(gsmSmsCbHandler->AddCbMessageToList(fresh));
+    gsmSmsCbHandler->cbMsgList_[0].header->recvTime -= GsmSmsCbHandler::DEFAULT_EXPIRED_TIME + 1;
+    gsmSmsCbHandler->ClearExpiredMessage();
+    ASSERT_EQ(gsmSmsCbHandler->cbMsgList_.size(), 1);
+    EXPECT_EQ(gsmSmsCbHandler->cbMsgList_[0].header->msgId, fresh->GetCbHeader()->msgId);
+}
+
+/**
  * @tc.number   Telephony_SmsMmsGtest_GsmCbCodecToString_0001
  * @tc.name     Test GsmCbCodecToString
  * @tc.desc     Function test

@@ -76,6 +76,9 @@ uint8_t GsmSmsCbHandler::CheckCbMessage(const std::shared_ptr<GsmCbCodec> &cbMes
         if (*cbInfo.header.get() == *cbHeader.get()) {
             int updateNum = cbHeader->serialNum.updateNum - cbInfo.header->serialNum.updateNum;
             if (updateNum != 0) {
+                // refer to 3GPP TS 23.041 9.4.1.2.1: a changed update number means the content has changed,
+                // drop the cached pages of the other version so that this version is assembled on its own
+                cbMsgList_.erase(cbMsgList_.begin() + i);
                 break;
             }
 
@@ -161,9 +164,10 @@ void GsmSmsCbHandler::ClearExpiredMessage()
     }
     std::time_t timep;
     int64_t currentTime = time(&timep);
-    for (auto i = cbMsgList_.size() - 1; i > 0; i--) {
-        if (currentTime - cbMsgList_[i].header->recvTime > static_cast<long long>(DEFAULT_EXPIRED_TIME)) {
-            cbMsgList_.erase(cbMsgList_.begin(), cbMsgList_.begin() + i + 1);
+    for (auto i = cbMsgList_.size(); i > 0; i--) {
+        if (cbMsgList_[i - 1].header != nullptr &&
+            currentTime - cbMsgList_[i - 1].header->recvTime > static_cast<long long>(DEFAULT_EXPIRED_TIME)) {
+            cbMsgList_.erase(cbMsgList_.begin(), cbMsgList_.begin() + i);
             TELEPHONY_LOGI("ClearExpiredMessage clear message count: %{public}zu", i);
             return;
         }
