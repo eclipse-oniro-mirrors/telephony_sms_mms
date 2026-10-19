@@ -451,6 +451,8 @@ HWTEST_F(BranchCbTest, GsmCbGsmCodec_0003, Function | MediumTest | Level1)
     gsmMsg->Decode2gHeaderCommonCb();
     uint16_t dataLen = gsmMsg->cbPduBuffer_->GetSize() - gsmMsg->cbPduBuffer_->GetCurPosition();
     gsmMsg->Decode2gCbMsg7bit(dataLen);
+    // the second Decode2gHeaderCommonCb() decodes text octet 0x9C as DCS (UDH), an ETWS primary has no DCS
+    gsmMsg->cbHeader_->dcs.bUDH = false;
     EXPECT_TRUE(gsmMsg->DecodeEtwsMsg());
 
     umtsMsg->Decode3gHeader();
