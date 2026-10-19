@@ -177,6 +177,7 @@ bool GsmCbUmtsCodec::Decode3g7Bit()
         }
         uint16_t dataLen = tpdu[pageLenOffset];
         uint16_t offset = (i * MAX_PAGE_PDU_LEN) + i;
+        size_t pageStart = messageRaw_.size();
         if (dataLen > MAX_PAGE_PDU_LEN) {
             TELEPHONY_LOGE("CB Msg Size is over MAX [%{public}d]", dataLen);
             messageRaw_.clear();
@@ -188,6 +189,10 @@ bool GsmCbUmtsCodec::Decode3g7Bit()
             &tpdu[offset], dataLen, 0x00, pageData, MAX_PAGE_PDU_LEN * SMS_BYTE_BIT / GSM_CODE_BIT);
         for (uint16_t position = 0; position < unpackLen; position++) {
             messageRaw_.push_back(pageData[position]);
+        }
+        // refer to 3GPP TS 23.038 5: with DCS 0001 0000 every page starts with the ISO 639 language code and a CR
+        if (cbHeader_->dcs.iso639Lang[0]) {
+            messageRaw_.erase(pageStart, GsmCbCodec::CB_IOS639_LANG_SIZE);
         }
     }
     cbCodec_->SetCbMessageRaw(messageRaw_);

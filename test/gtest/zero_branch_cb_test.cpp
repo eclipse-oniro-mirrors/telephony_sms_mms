@@ -872,6 +872,38 @@ HWTEST_F(BranchCbTest, Decode2gLanguagePrefix_0001, Function | MediumTest | Leve
 }
 
 /**
+ * @tc.number   Telephony_SmsMmsGtest_Decode3gLanguagePrefix_0001
+ * @tc.name     Test UMTS 7bit DCS 0001 0000 language indication
+ * @tc.desc     Function test, the "xx<CR>" prefix of every page is skipped (3GPP TS 23.038 5)
+ */
+HWTEST_F(BranchCbTest, Decode3gLanguagePrefix_0001, Function | MediumTest | Level1)
+{
+    auto pageOf = [](const std::string &text) {
+        std::vector<unsigned char> packed = PackCbSeptets(std::vector<uint8_t>(text.begin(), text.end()));
+        return std::make_pair(packed, static_cast<uint8_t>(packed.size()));
+    };
+    auto cbMsg = GsmCbCodec::CreateCbMessage(BuildUmtsCbPdu(0x0032, 0x10, { pageOf("en\rHi") }));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw(), "Hi");
+
+    cbMsg = GsmCbCodec::CreateCbMessage(BuildUmtsCbPdu(0x0032, 0x10, { pageOf("en\rHi"), pageOf("en\rOK") }));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw(), "HiOK");
+
+    cbMsg = GsmCbCodec::CreateCbMessage(BuildUmtsCbPdu(0x0032, 0x10, { pageOf("en\r") }));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_TRUE(cbMsg->GetCbMessageRaw().empty());
+
+    cbMsg = GsmCbCodec::CreateCbMessage(BuildUmtsCbPdu(0x0032, 0x10, { pageOf("en") }));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_TRUE(cbMsg->GetCbMessageRaw().empty());
+
+    cbMsg = GsmCbCodec::CreateCbMessage(BuildUmtsCbPdu(0x0032, 0x01, { pageOf("en\rHi") }));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw(), "en\rHi");
+}
+
+/**
  * @tc.number   Telephony_SmsMmsGtest_GsmCbCodecToString_0001
  * @tc.name     Test GsmCbCodecToString
  * @tc.desc     Function test
