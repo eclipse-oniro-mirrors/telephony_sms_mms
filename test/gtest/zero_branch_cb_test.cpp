@@ -823,6 +823,30 @@ HWTEST_F(BranchCbTest, Decode3gUCS2PageOffset_0001, Function | MediumTest | Leve
 }
 
 /**
+ * @tc.number   Telephony_SmsMmsGtest_Decode2gPageParameter_0001
+ * @tc.name     Test GSM page parameter normalization
+ * @tc.desc     Function test, page parameter 0000 is treated as 0001 0001 (3GPP TS 23.041 9.4.1.2.4)
+ */
+HWTEST_F(BranchCbTest, Decode2gPageParameter_0001, Function | MediumTest | Level1)
+{
+    const uint8_t pageParamMax = 0xFF;
+    std::vector<std::pair<uint8_t, std::pair<uint8_t, uint8_t>>> cases = { { 0x00, { 1, 1 } }, { 0x10, { 1, 1 } },
+        { 0x01, { 1, 1 } }, { 0x32, { 1, 1 } }, { 0x11, { 1, 1 } }, { 0x12, { 1, 2 } }, { 0x22, { 2, 2 } },
+        { pageParamMax, { 15, 15 } } };
+    for (auto &item : cases) {
+        auto cbMsg = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4010, 0x0032, 0x01, item.first, "Test"));
+        ASSERT_NE(cbMsg, nullptr);
+        EXPECT_EQ(cbMsg->GetCbHeader()->page, item.second.first);
+        EXPECT_EQ(cbMsg->GetCbHeader()->totalPages, item.second.second);
+    }
+
+    auto gsmSmsCbHandler = std::make_shared<GsmSmsCbHandler>(INVALID_SLOTID);
+    auto cbMsg = GsmCbCodec::CreateCbMessage(BuildGsmCbPdu(0x4010, 0x0032, 0x01, 0x00, "Test"));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(gsmSmsCbHandler->CheckCbMessage(cbMsg), cbMsg->GetCbHeader()->totalPages);
+}
+
+/**
  * @tc.number   Telephony_SmsMmsGtest_GsmCbCodecToString_0001
  * @tc.name     Test GsmCbCodecToString
  * @tc.desc     Function test

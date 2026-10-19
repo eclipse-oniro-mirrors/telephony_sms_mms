@@ -32,6 +32,22 @@ static constexpr uint8_t MAX_ETWS_PDU_LEN = 56;
 static constexpr uint8_t MAX_PAGE_NUM = 15;
 static constexpr uint16_t GSM_ETWS_BASE_MASK = 0x1100;
 
+namespace {
+/**
+ * refer to 3GPP TS 23.041 9.4.1.2.4: a page parameter field of 0000 shall be treated as 0001 0001 (single page),
+ * a page number greater than the number of pages is invalid as well and is handled the same way
+ */
+void DecodePageParameter(uint8_t pageParameter, GsmCbCodec::GsmCbMessageHeader &header)
+{
+    header.totalPages = static_cast<uint8_t>(pageParameter & HEX_VALUE_0F);
+    header.page = static_cast<uint8_t>((pageParameter & HEX_VALUE_F0) >> HEX_VALUE_04);
+    if (header.totalPages == 0 || header.page == 0 || header.page > header.totalPages) {
+        header.totalPages = 1;
+        header.page = 1;
+    }
+}
+} // namespace
+
 GsmCbGsmCodec::GsmCbGsmCodec(std::shared_ptr<GsmCbCodec::GsmCbMessageHeader> header,
     std::shared_ptr<GsmCbPduDecodeBuffer> buffer, std::shared_ptr<GsmCbCodec> cbCodec)
 {
@@ -146,10 +162,7 @@ bool GsmCbGsmCodec::Decode2gHeaderCommonCb()
         TELEPHONY_LOGE("get data error.");
         return false;
     }
-    uint8_t temp = oneByte;
-    cbHeader_->totalPages = temp & HEX_VALUE_0F;
-    cbHeader_->page = (temp & HEX_VALUE_F0) >> HEX_VALUE_04;
-
+    DecodePageParameter(oneByte, *cbHeader_);
     if (!cbPduBuffer_->GetOneByte(oneByte)) {
         TELEPHONY_LOGE("get data error.");
         return false;
