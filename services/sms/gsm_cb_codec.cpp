@@ -350,6 +350,21 @@ void GsmCbCodec::DecodeGeneralDcs(const uint8_t dcsData, GsmCbMsgDcs &dcs) const
     }
 }
 
+namespace {
+/**
+ * refer to 3GPP TS 23.038 5: bits 3..2 of DCS 1001 xxxx give the alphabet of a message with user data header,
+ * the reserved value is treated as the GSM 7 bit default alphabet
+ */
+uint8_t DecodeUdhAlphabet(uint8_t dcsData)
+{
+    uint8_t alphabet = static_cast<uint8_t>((dcsData & HEX_VALUE_0C) >> HEX_VALUE_02);
+    if (alphabet > DATA_CODING_UCS2) {
+        return static_cast<uint8_t>(DATA_CODING_7BIT);
+    }
+    return alphabet;
+}
+} // namespace
+
 /**
  *  refer to 3GPP TS 23.038 V4.3.0 6 section
  */
@@ -386,7 +401,7 @@ void GsmCbCodec::DecodeCbMsgDCS(const uint8_t dcsData, const unsigned short iosD
         case HEX_VALUE_09:
             dcs.bUDH = true;
             dcs.classType = dcsData & HEX_VALUE_03;
-            dcs.codingScheme = (dcsData & HEX_VALUE_0C) >> HEX_VALUE_02;
+            dcs.codingScheme = DecodeUdhAlphabet(dcsData);
             break;
         case HEX_VALUE_0E:
             dcs.codingGroup = SMS_CBMSG_CODGRP_WAP;

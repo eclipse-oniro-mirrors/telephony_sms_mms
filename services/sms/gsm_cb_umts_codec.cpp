@@ -152,6 +152,41 @@ bool GsmCbUmtsCodec::Decode3gCbMsg()
     return decodeResult;
 }
 
+namespace {
+/**
+ * refer to 3GPP TS 23.040 9.2.3.24: the text starts at the first septet boundary after the user data header
+ */
+bool SkipUdhSeptets(std::string &raw, size_t pageStart, uint8_t udhl)
+{
+    size_t udhBits = static_cast<size_t>(udhl + HEX_VALUE_01) * SMS_BYTE_BIT;
+    size_t udhSeptets = (udhBits + GSM_CODE_BIT - 1) / GSM_CODE_BIT;
+    if (pageStart > raw.size() || udhSeptets > raw.size() - pageStart) {
+        TELEPHONY_LOGE("CB UDH length error.");
+        return false;
+    }
+    raw.erase(pageStart, udhSeptets);
+    return true;
+}
+
+/**
+ * refer to 3GPP TS 23.040 9.2.3.24: with a user data header the page starts with UDHL followed by the header
+ */
+bool SkipUdhOctets(bool hasUdh, const std::vector<unsigned char> &tpdu, uint16_t &offset, uint16_t &dataLen)
+{
+    if (!hasUdh || dataLen == 0 || offset >= tpdu.size()) {
+        return true;
+    }
+    uint16_t udhLen = static_cast<uint16_t>(tpdu[offset] + HEX_VALUE_01);
+    if (udhLen > dataLen) {
+        TELEPHONY_LOGE("CB UDH length error.");
+        return false;
+    }
+    offset = static_cast<uint16_t>(offset + udhLen);
+    dataLen = static_cast<uint16_t>(dataLen - udhLen);
+    return true;
+}
+} // namespace
+
 bool GsmCbUmtsCodec::Decode3g7Bit()
 {
     if (cbPduBuffer_ == nullptr || cbCodec_ == nullptr || cbPduBuffer_->GetSize() == 0) {
@@ -194,6 +229,10 @@ bool GsmCbUmtsCodec::Decode3g7Bit()
         if (cbHeader_->dcs.iso639Lang[0]) {
             messageRaw_.erase(pageStart, GsmCbCodec::CB_IOS639_LANG_SIZE);
         }
+        if (cbHeader_->dcs.bUDH && dataLen > 0 && !SkipUdhSeptets(messageRaw_, pageStart, tpdu[offset])) {
+            messageRaw_.clear();
+            return false;
+        }
     }
     cbCodec_->SetCbMessageRaw(messageRaw_);
     return true;
@@ -234,6 +273,10 @@ bool GsmCbUmtsCodec::Decode3gUCS2()
         } else {
             dataLen = tpdu[pageLenOffset];
             offset = (i * MAX_PAGE_PDU_LEN) + i;
+        }
+        if (!SkipUdhOctets(cbHeader_->dcs.bUDH, dataPdu, offset, dataLen)) {
+            messageRaw_.clear();
+            return false;
         }
         if (dataLen > 0 && dataLen <= MAX_PAGE_PDU_LEN && offset + dataLen <= tpduLen) {
             for (uint16_t position = offset; position < offset + dataLen; position++) {

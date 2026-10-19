@@ -196,6 +196,31 @@ bool GsmCbGsmCodec::Decode2gHeaderCommonCb()
     return true;
 }
 
+namespace {
+/**
+ * checks the 8bit or UCS2 content of a GSM CB page, refer to 3GPP TS 23.040 9.2.3.24: with a user data header
+ * the content starts with UDHL followed by the user data header, both are skipped
+ */
+bool CheckPageContent(GsmCbPduDecodeBuffer &buffer, uint16_t dataLen, bool hasUdh)
+{
+    if (dataLen == 0 || buffer.pduBuffer_ == nullptr || (buffer.GetCurPosition() + dataLen) > buffer.GetSize()) {
+        TELEPHONY_LOGE("CB pdu data error.");
+        return false;
+    }
+    if (!hasUdh) {
+        return true;
+    }
+    uint8_t udhl = static_cast<uint8_t>(buffer.pduBuffer_[buffer.GetCurPosition()]);
+    uint16_t udhLen = static_cast<uint16_t>(udhl + HEX_VALUE_01);
+    if (udhLen > dataLen) {
+        TELEPHONY_LOGE("CB UDH length error.");
+        return false;
+    }
+    buffer.SetPointer(buffer.GetCurPosition() + udhLen);
+    return true;
+}
+} // namespace
+
 /**
  * refer to 3GPP TS 23.041 V4.1.0 9.4.2.2 Message Parameter
  */
@@ -228,9 +253,7 @@ bool GsmCbGsmCodec::Decode2gCbMsg()
                 dataLen -= HEX_VALUE_02;
             }
 
-            if (dataLen == 0 || cbPduBuffer_->pduBuffer_ == nullptr ||
-                (cbPduBuffer_->GetCurPosition() + dataLen) > cbPduBuffer_->GetSize()) {
-                TELEPHONY_LOGE("CB pdu data error.");
+            if (!CheckPageContent(*cbPduBuffer_, dataLen, cbHeader_->dcs.bUDH)) {
                 return false;
             }
             for (uint32_t i = cbPduBuffer_->GetCurPosition(); i < cbPduBuffer_->GetSize(); i++) {
@@ -266,6 +289,17 @@ bool GsmCbGsmCodec::Decode2gCbMsg7bit(uint16_t dataLen)
     if (cbHeader_->dcs.iso639Lang[0] && unpackLen >= GsmCbCodec::CB_IOS639_LANG_SIZE) {
         unpackLen = unpackLen - GsmCbCodec::CB_IOS639_LANG_SIZE;
         offset = GsmCbCodec::CB_IOS639_LANG_SIZE;
+    }
+    if (cbHeader_->dcs.bUDH) {
+        // refer to 3GPP TS 23.040 9.2.3.24: the text starts at the first septet boundary after the user data header
+        uint16_t udhBits = static_cast<uint16_t>((dataPdu[0] + HEX_VALUE_01) * SMS_BYTE_BIT);
+        uint16_t udhSeptets = static_cast<uint16_t>((udhBits + GSM_CODE_BIT - 1) / GSM_CODE_BIT);
+        if (udhSeptets > unpackLen) {
+            TELEPHONY_LOGE("CB UDH length error.");
+            return false;
+        }
+        unpackLen = static_cast<uint16_t>(unpackLen - udhSeptets);
+        offset = udhSeptets;
     }
     if (offset + unpackLen >= (MAX_PAGE_PDU_LEN * SMS_BYTE_BIT / GSM_CODE_BIT) + 1) {
         TELEPHONY_LOGE("CB pdu data error.");

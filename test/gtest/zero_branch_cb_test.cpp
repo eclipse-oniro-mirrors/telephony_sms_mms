@@ -986,6 +986,125 @@ HWTEST_F(BranchCbTest, CbClearExpiredMessage_0001, Function | MediumTest | Level
     EXPECT_EQ(gsmSmsCbHandler->cbMsgList_[0].header->msgId, fresh->GetCbHeader()->msgId);
 }
 
+namespace {
+// user data header followed by fill bits and GSM 7bit characters starting on a septet boundary
+std::vector<unsigned char> PackCbUdh7bit(const std::vector<unsigned char> &udh, const std::vector<uint8_t> &septets)
+{
+    size_t textStart = (udh.size() * CB_OCTET_BITS + CB_SEPTET_BITS - 1) / CB_SEPTET_BITS * CB_SEPTET_BITS;
+    std::vector<unsigned char> out(
+        (textStart + septets.size() * CB_SEPTET_BITS + CB_OCTET_BITS - 1) / CB_OCTET_BITS, 0);
+    std::copy(udh.begin(), udh.end(), out.begin());
+    for (size_t i = 0; i < septets.size(); i++) {
+        for (size_t bit = 0; bit < CB_SEPTET_BITS; bit++) {
+            size_t pos = textStart + i * CB_SEPTET_BITS + bit;
+            if ((septets[i] >> bit) & 0x01) {
+                out[pos / CB_OCTET_BITS] |= static_cast<unsigned char>(1 << (pos % CB_OCTET_BITS));
+            }
+        }
+    }
+    return out;
+}
+} // namespace
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbUserDataHeader_0001
+ * @tc.name     Test GSM CBS with DCS 1001 xxxx
+ * @tc.desc     Function test, the user data header is skipped, the reserved alphabet is GSM 7bit (3GPP TS 23.038 5)
+ */
+HWTEST_F(BranchCbTest, CbUserDataHeader_0001, Function | MediumTest | Level1)
+{
+    // UDHL = 5, concatenation information element (3GPP TS 23.040 9.2.3.24)
+    const std::vector<unsigned char> udh = { 0x05, 0x00, 0x03, 0x01, 0x01, 0x01 };
+    std::vector<uint8_t> septets = { 'H', 'e', 'l', 'l', 'o' };
+    septets.resize(CB_PAGE_SEPTETS, CB_GSM7_CR);
+    std::vector<unsigned char> content7bit = PackCbUdh7bit(udh, septets);
+    content7bit.resize(CB_PAGE_OCTETS);
+    // the text starts at the first septet boundary after the header, the <CR> padding of the page is kept
+    const size_t udhSeptets = (udh.size() * CB_OCTET_BITS + CB_SEPTET_BITS - 1) / CB_SEPTET_BITS;
+    std::string expected7bit = "Hello";
+    expected7bit.resize(CB_PAGE_SEPTETS - udhSeptets, static_cast<char>(CB_GSM7_CR));
+    const std::vector<uint8_t> dcsList = { 0x90, 0x9C };
+    for (uint8_t dcs : dcsList) {
+        auto cbMsg = GsmCbCodec::CreateCbMessage(BuildGsmCbPduWithContent(0x4010, 0x0032, dcs, 0x11, content7bit));
+        ASSERT_NE(cbMsg, nullptr);
+        EXPECT_EQ(cbMsg->GetCbMessageRaw(), expected7bit);
+    }
+
+    std::vector<unsigned char> contentUcs2 = udh;
+    std::vector<unsigned char> text = Ucs2Of("Hi");
+    contentUcs2.insert(contentUcs2.end(), text.begin(), text.end());
+    std::string expectedUcs2 = "Hi";
+    while (contentUcs2.size() < CB_PAGE_OCTETS) {
+        contentUcs2.push_back(0x00);
+        contentUcs2.push_back(CB_GSM7_CR);
+        expectedUcs2.push_back(static_cast<char>(CB_GSM7_CR));
+    }
+    auto cbMsg = GsmCbCodec::CreateCbMessage(BuildGsmCbPduWithContent(0x4010, 0x0032, 0x98, 0x11, contentUcs2));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(BodyOf(cbMsg), expectedUcs2);
+
+    // UDHL beyond the page is a format error
+    const unsigned char badUdhl = 0x60;
+    content7bit[0] = badUdhl;
+    EXPECT_EQ(GsmCbCodec::CreateCbMessage(BuildGsmCbPduWithContent(0x4010, 0x0032, 0x90, 0x11, content7bit)), nullptr);
+    contentUcs2[0] = badUdhl;
+    EXPECT_EQ(GsmCbCodec::CreateCbMessage(BuildGsmCbPduWithContent(0x4010, 0x0032, 0x98, 0x11, contentUcs2)), nullptr);
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbUserDataHeader_0002
+ * @tc.name     Test UMTS CBS and GSM 8bit CBS with DCS 1001 xxxx
+ * @tc.desc     Function test, the user data header of every UMTS page and of a GSM 8bit page is skipped
+ */
+HWTEST_F(BranchCbTest, CbUserDataHeader_0002, Function | MediumTest | Level1)
+{
+    // UDHL = 5, concatenation information element (3GPP TS 23.040 9.2.3.24)
+    const std::vector<unsigned char> udh = { 0x05, 0x00, 0x03, 0x01, 0x01, 0x01 };
+    std::vector<unsigned char> page7bit = PackCbUdh7bit(udh, { 'H', 'e', 'l', 'l', 'o' });
+    auto cbMsg = GsmCbCodec::CreateCbMessage(
+        BuildUmtsCbPdu(0x0032, 0x90, { { page7bit, static_cast<uint8_t>(page7bit.size()) } }));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw(), "Hello");
+
+    std::vector<unsigned char> pageUcs2 = udh;
+    std::vector<unsigned char> text = Ucs2Of("Hi");
+    pageUcs2.insert(pageUcs2.end(), text.begin(), text.end());
+    cbMsg = GsmCbCodec::CreateCbMessage(
+        BuildUmtsCbPdu(0x0032, 0x98, { { pageUcs2, static_cast<uint8_t>(pageUcs2.size()) } }));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(BodyOf(cbMsg), "Hi");
+
+    // the CBS-Message-Information-Length only covers the UDHL octet
+    const uint8_t udhlOnlyLen = 1;
+    cbMsg = GsmCbCodec::CreateCbMessage(BuildUmtsCbPdu(0x0032, 0x98, { { pageUcs2, udhlOnlyLen } }));
+    EXPECT_EQ(cbMsg, nullptr);
+
+    std::vector<unsigned char> content8bit = udh;
+    content8bit.push_back('b');
+    cbMsg = GsmCbCodec::CreateCbMessage(BuildGsmCbPduWithContent(0x4010, 0x0032, 0x94, 0x11, content8bit));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw().size(), CB_PAGE_OCTETS - udh.size());
+    EXPECT_EQ(cbMsg->GetCbMessageRaw()[0], 'b');
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbUserDataHeader_0003
+ * @tc.name     Test DecodeCbMsgDCS with DCS 1001 xxxx
+ * @tc.desc     Function test, bits 3..2 give the alphabet, the reserved value is GSM 7bit (3GPP TS 23.038 5)
+ */
+HWTEST_F(BranchCbTest, CbUserDataHeader_0003, Function | MediumTest | Level1)
+{
+    auto codec = std::make_shared<GsmCbCodec>();
+    GsmCbCodec::GsmCbMsgDcs dcs = {};
+    std::vector<std::pair<uint8_t, DataCodingScheme>> dcsCases = { { 0x90, DATA_CODING_7BIT },
+        { 0x94, DATA_CODING_8BIT }, { 0x98, DATA_CODING_UCS2 }, { 0x9C, DATA_CODING_7BIT } };
+    for (auto &item : dcsCases) {
+        codec->DecodeCbMsgDCS(item.first, 0, dcs);
+        EXPECT_TRUE(dcs.bUDH);
+        EXPECT_EQ(dcs.codingScheme, item.second);
+    }
+}
+
 /**
  * @tc.number   Telephony_SmsMmsGtest_GsmCbCodecToString_0001
  * @tc.name     Test GsmCbCodecToString
