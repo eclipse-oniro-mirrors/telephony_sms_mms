@@ -193,7 +193,7 @@ void CdmaSmsSender::SendSmsForEveryIndexer(int &i, std::vector<struct SplitInfo>
     indexer->SetDcs(cellsInfos[i].encodeType);
     (void)memset_s(tpdu->data.submit.userData.data, MAX_USER_DATA_LEN + 1, 0x00, MAX_USER_DATA_LEN + 1);
 
-    if (cellsInfos[i].encodeData.size() >= MAX_USER_DATA_LEN + 1) {
+    if (cellsInfos[i].encodeData.size() > MAX_USER_DATA_LEN) {
         return;
     }
     if (memcpy_s(tpdu->data.submit.userData.data, MAX_USER_DATA_LEN + 1, &cellsInfos[i].encodeData[0],

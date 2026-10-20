@@ -657,6 +657,9 @@ bool CdmaSmsUserData::DecodeAscii7Bit(SmsReadBuffer &pdu, uint8_t numFields, uin
             udhLen++;
         }
     }
+    if (udhLen > numFields) {
+        return false;
+    }
     data_.userData.length = numFields - udhLen;
     if (static_cast<unsigned long>(data_.userData.length) >
         (sizeof(data_.userData.data) / sizeof(data_.userData.data[0]))) {
@@ -689,6 +692,9 @@ bool CdmaSmsUserData::DecodeGsm7Bit(SmsReadBuffer &pdu, uint8_t numFields, uint8
             }
             udhLen++;
         }
+    }
+    if (udhLen > numFields) {
+        return false;
     }
     data_.userData.length = numFields - udhLen;
     uint8_t udBytes = data_.userData.length * BIT7 / BIT8;

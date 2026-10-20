@@ -104,6 +104,10 @@ bool GsmCbGsmCodec::Decode2gHeader()
 
 bool GsmCbGsmCodec::Decode2gHeaderEtws()
 {
+    if (cbPduBuffer_ == nullptr || cbHeader_ == nullptr || cbCodec_ == nullptr) {
+        TELEPHONY_LOGE("CB pdu data error.");
+        return false;
+    }
     uint8_t oneByte = 0;
     cbHeader_->cbEtwsType = GsmCbCodec::ETWS_PRIMARY;
     cbHeader_->bEtwsMessage = true;
@@ -230,6 +234,10 @@ bool GsmCbGsmCodec::Decode2gCbMsg()
 
 bool GsmCbGsmCodec::Decode2gCbMsg7bit(uint16_t dataLen)
 {
+    if (cbHeader_ == nullptr || cbCodec_ == nullptr) {
+        TELEPHONY_LOGE("CB pdu data error.");
+        return false;
+    }
     uint8_t pageData[MAX_PAGE_PDU_LEN * SMS_BYTE_BIT / GSM_CODE_BIT + 1] = { 0 };
     std::vector<uint8_t> dataPdu;
     cbCodec_->GetPduData(dataPdu);

@@ -463,6 +463,9 @@ void SmsSender::OnRilAdapterHostDied()
 
 void SmsSender::CharArrayToString(const uint8_t *data, uint32_t dataLen, std::string &dataStr)
 {
+    if (data == nullptr) {
+        return;
+    }
     uint32_t indexData = 0;
     while (indexData < dataLen) {
         dataStr += data[indexData];
@@ -492,7 +495,7 @@ void SmsSender::DataBasedSmsDeliverySplitPage(GsmSmsMessage &gsmSmsMessage, std:
             return;
         }
         (void)memset_s(tpdu->data.submit.userData.data, MAX_USER_DATA_LEN + 1, 0x00, MAX_USER_DATA_LEN + 1);
-        if (cellsInfos[indexData].encodeData.size() > MAX_USER_DATA_LEN + 1) {
+        if (cellsInfos[indexData].encodeData.size() > MAX_USER_DATA_LEN) {
             TELEPHONY_LOGE("data length invalid.");
             return;
         }

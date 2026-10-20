@@ -219,9 +219,11 @@ CdmaSmsBroadcastMessage::CdmaSmsBroadcastMessage(CdmaBroadCastMsg &msg, SmsReadB
             parameter_.push_back(std::make_unique<CdmaSmsServiceCategory>(msg.serviceCtg));
             uint16_t index = pdu.GetIndex();
             pdu.MoveBack(PARAMETER_ID_BYTES + PARAMETER_LEN_BYTES); // back to ID field
-            if (parameter_.size() > 0) {
-                parameter_[parameter_.size() - 1]->Decode(pdu);
+            if (parameter_.empty() || parameter_.back() == nullptr) {
+                TELEPHONY_LOGE("parameter is invalid");
+                return;
             }
+            parameter_.back()->Decode(pdu);
             pdu.SetIndex(index);
         } else if (id == CdmaSmsParameterRecord::BEARER_DATA) {
             uint16_t index = pdu.GetIndex();

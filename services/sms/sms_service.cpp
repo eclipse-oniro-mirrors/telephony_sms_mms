@@ -273,8 +273,9 @@ bool SmsService::InsertSession(
     sessionBucket.Put(Session::TELEPHONE, number);
     sessionBucket.Put(Session::CONTENT, text);
     sessionBucket.Put(Session::CONTACTS_NUM, "1");
-    sessionBucket.Put(Session::SMS_TYPE, "0");
-    sessionBucket.Put(Session::UNREAD_COUNT, "0");
+    if (isNewSession) {
+        sessionBucket.Put(Session::SMS_TYPE, "0");
+    }
     sessionBucket.Put(Session::SENDING_STATUS, "0");
     sessionBucket.Put(Session::HAS_DRAFT, "0");
     sessionBucket.Put(Session::HAS_LOCK, "0");
@@ -654,7 +655,7 @@ bool SmsService::SetImsSmsConfig(int32_t slotId, int32_t enable)
 {
     if (!TelephonyPermission::CheckCallerIsSystemApp()) {
         TELEPHONY_LOGE("Non-system applications use system APIs!");
-        return TELEPHONY_ERR_ILLEGAL_USE_OF_SYSTEM_API;
+        return false;
     }
     if (!TelephonyPermission::CheckPermission(Permission::SET_TELEPHONY_STATE)) {
         TELEPHONY_LOGE("Check permission failed.");

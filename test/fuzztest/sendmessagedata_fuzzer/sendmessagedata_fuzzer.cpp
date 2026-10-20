@@ -39,6 +39,10 @@ bool IsServiceInited()
         if (DelayedSingleton<SmsService>::GetInstance()->GetServiceRunningState() ==
             static_cast<int32_t>(Telephony::ServiceRunningState::STATE_RUNNING)) {
             g_isInited = true;
+            atexit([] {
+                DelayedSingleton<SmsService>::GetInstance()->OnStop();
+                _exit(0);
+            });
         }
     }
     return g_isInited;

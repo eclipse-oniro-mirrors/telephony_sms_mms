@@ -92,7 +92,7 @@ void GsmSmsSender::TextBasedSmsSplitDelivery(const std::string &desAddr, const s
     for (int i = 0; i < cellsInfosSize; i++) {
         std::shared_ptr<SmsSendIndexer> indexer = nullptr;
         std::string segmentText;
-        if (cellsInfos[i].encodeData.size() > MAX_USER_DATA_LEN + 1 || cellsInfos[i].encodeData.empty()) {
+        if (cellsInfos[i].encodeData.size() > MAX_USER_DATA_LEN || cellsInfos[i].encodeData.empty()) {
             return;
         }
         segmentText.append((char *)(cellsInfos[i].encodeData.data()), cellsInfos[i].encodeData.size());

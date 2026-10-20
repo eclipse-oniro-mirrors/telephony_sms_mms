@@ -286,6 +286,7 @@ void UpdateReqCount()
 
 void DecreaseReqCount()
 {
+    std::unique_lock<std::mutex> lck(AniSendRecvMms::countCtx_);
     AniSendRecvMms::reqCount_--;
     if (AniSendRecvMms::reqCount_ > 0) {
         AniSendRecvMms::waitFlag = true;

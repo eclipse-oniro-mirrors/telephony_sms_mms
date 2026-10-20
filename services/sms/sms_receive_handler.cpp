@@ -324,7 +324,7 @@ bool SmsReceiveHandler::CombineMultiPageMessage(const std::shared_ptr<SmsReceive
 {
     int msgSeg = static_cast<int>(indexer->GetMsgCount());
     pdus->assign(msgSeg, "");
-    int8_t notNullPart = msgSeg;
+    int notNullPart = msgSeg;
     std::vector<SmsReceiveIndexer> dbIndexers;
     DataShare::DataSharePredicates predicates;
     predicates.EqualTo(SmsSubsection::SENDER_NUMBER, indexer->GetOriginatingAddress())

@@ -166,7 +166,7 @@ void GsmCbCodec::PduAfterDiscardNullBlock(const std::vector<unsigned char> &pdu)
 
 bool GsmCbCodec::ParamsCheck(const std::vector<unsigned char> &pdu)
 {
-    if (pdu.size() == 0 && pdu.size() > MAX_CB_MSG_LEN) {
+    if (pdu.size() == 0 || pdu.size() > MAX_CB_MSG_LEN) {
         TELEPHONY_LOGE("pdu data error.");
         return false;
     }

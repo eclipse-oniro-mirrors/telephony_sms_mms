@@ -18,13 +18,15 @@
 #ifdef GTEST_API_
 #define private public
 #endif
+#include <cstdlib>
+#include <unistd.h>
 
 #include "addsmstoken_fuzzer.h"
 #include "sms_wap_push_handler.h"
 
 using namespace OHOS::Telephony;
 namespace OHOS {
-static int32_t SIM_COUNT = 2;
+constexpr int32_t SIM_COUNT = 2;
 
 void WapPushBuffer(const uint8_t *data, size_t size)
 {
@@ -91,6 +93,11 @@ void DoWapPushBufferWithMyAPI(const uint8_t *data, size_t size)
 /* Fuzzer entry point */
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
+    bool atexitRegistered = false;
+    if (!atexitRegistered) {
+        atexitRegistered = true;
+        atexit([] { _exit(0); });
+    }
     /* Run your code on data */
     OHOS::AddSmsTokenFuzzer token;
     OHOS::DoWapPushBufferWithMyAPI(data, size);

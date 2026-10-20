@@ -1,115 +1,118 @@
 {
-  "name": "@ohos/sms_mms",
-  "version": "4.0",
-  "description": "telephony sms mms service",
-  "publishAs": "code-segment",
-  "homePage": "https://gitee.com/openharmony",
-  "repository": "https://gitee.com/openharmony/telephony_sms_mms",
-  "license": "Apache License 2.0",
-  "language": "",
-  "private": false,
-  "scripts": {},
-  "envs": [],
-  "dirs": [],
-  "author": {},
-  "contributors": [],
-  "segment": {
-    "destPath": "base/telephony/sms_mms"
-  },
-  "component": {
-    "name": "sms_mms",
-    "subsystem": "telephony",
-    "syscap": [
-      "SystemCapability.Telephony.SmsMms"
-    ],
-    "features": [
-      "sms_mms_dynamic_start",
-      "sms_mms_tel_power_mode",
-      "sms_mms_feature_support_mms",
-      "sms_mms_satellite"
-    ],
-    "adapted_system_type": [
-      "standard"
-    ],
-    "rom": "1229KB",
-    "ram": "1MB",
-    "deps": {
-      "components": [
-        "ability_base",
-        "ability_runtime",
-        "access_token",
-        "bundle_framework",
-        "c_utils",
-        "common_event_service",
-        "core_service",
-        "curl",
-        "data_share",
-        "eventhandler",
-        "ffrt",
-        "hilog",
-        "hisysevent",
-        "icu",
-        "init",
-        "ipc",
-        "image_framework",
-        "libphonenumber",
-        "libuv",
-        "napi",
-        "netmanager_base",
-        "netstack",
-        "os_account",
-        "power_manager",
-        "resource_management",
-        "runtime_core",
-        "safwk",
-        "samgr",
-        "protobuf",
-        "telephony_data"
-      ],
-      "third_party": []
+    "name": "@ohos/sms_mms",
+    "version": "4.0",
+    "description": "telephony sms mms service",
+    "publishAs": "code-segment",
+    "homePage": "https://gitee.com/openharmony",
+    "repository": "https://gitee.com/openharmony/telephony_sms_mms",
+    "license": "Apache License 2.0",
+    "language": "",
+    "private": false,
+    "scripts": {},
+    "envs": [],
+    "dirs": [],
+    "author": {},
+    "contributors": [],
+    "segment": {
+        "destPath": "base/telephony/sms_mms"
     },
-    "build": {
-      "sub_component": [
-        "//base/telephony/sms_mms:tel_sms_mms",
-        "//base/telephony/sms_mms/frameworks/native:tel_sms_mms_api",
-        "//base/telephony/sms_mms/frameworks/cj:cj_sms_ffi",
-        "//base/telephony/sms_mms/frameworks/js/napi/:sms",
-        "//base/telephony/sms_mms/sa_profile:sms_mms_sa_profile",
-        "//base/telephony/sms_mms/services/etc:sms_short_code_rules",
-        "//base/telephony/sms_mms/frameworks/ets/taihe:telephony_sms_taihe"
-      ],
-      "inner_kits": [
-        {
-          "name": "//base/telephony/sms_mms/frameworks/native:tel_sms_mms_api",
-          "header": {
-            "header_base": "//base/telephony/sms_mms/interfaces/innerkits",
-            "header_files": []
-          }
+    "component": {
+        "name": "sms_mms",
+        "subsystem": "telephony",
+        "syscap": [
+            "SystemCapability.Telephony.SmsMms"
+        ],
+        "features": [
+            "sms_mms_dynamic_start",
+            "sms_mms_tel_power_mode",
+            "sms_mms_feature_support_mms",
+            "sms_mms_satellite"
+        ],
+        "adapted_system_type": [
+            "standard"
+        ],
+        "rom": "1229KB",
+        "ram": "1MB",
+        "deps": {
+            "components": [
+                "ability_base",
+                "ability_runtime",
+                "access_token",
+                "bundle_framework",
+                "c_utils",
+                "common_event_service",
+                "core_service",
+                "curl",
+                "data_share",
+                "eventhandler",
+                "ffrt",
+                "hilog",
+                "hisysevent",
+                "icu",
+                "init",
+                "ipc",
+                "image_framework",
+                "libphonenumber",
+                "libuv",
+                "napi",
+                "netmanager_base",
+                "netstack",
+                "node",
+                "os_account",
+                "power_manager",
+                "resource_management",
+                "runtime_core",
+                "safwk",
+                "samgr",
+                "protobuf",
+                "telephony_data",
+                "taihe_ffi_gen"
+            ],
+            "third_party": [
+            ]
         },
-        {
-          "name": "//base/telephony/sms_mms/frameworks/cj:cj_sms_ffi",
-          "header": {
-            "header_base": "//base/telephony/sms_mms/frameworks/cj/include",
-            "header_files": []
-          }
+        "build": {
+            "sub_component": [
+                "//base/telephony/sms_mms:tel_sms_mms",
+                "//base/telephony/sms_mms/frameworks/native:tel_sms_mms_api",
+                "//base/telephony/sms_mms/frameworks/cj:cj_sms_ffi",
+                "//base/telephony/sms_mms/frameworks/js/napi/:sms",
+                "//base/telephony/sms_mms/sa_profile:sms_mms_sa_profile",
+                "//base/telephony/sms_mms/services/etc:sms_short_code_rules",
+                "//base/telephony/sms_mms/frameworks/ets/taihe:telephony_sms_taihe"
+            ],
+            "inner_kits": [
+                {
+                    "name":"//base/telephony/sms_mms/frameworks/native:tel_sms_mms_api",
+                    "header": {
+                        "header_base" : "//base/telephony/sms_mms/interfaces/innerkits",
+                        "header_files": []
+                    }
+                },
+                {
+                    "name":"//base/telephony/sms_mms/frameworks/cj:cj_sms_ffi",
+                    "header": {
+                        "header_base" : "//base/telephony/sms_mms/frameworks/cj/include",
+                        "header_files": []
+                    }
+                }
+            ],
+            "test": [
+                "//base/telephony/sms_mms/test:unittest",
+                "//base/telephony/sms_mms/test/fuzztest:fuzztest",
+                "//base/telephony/sms_mms/test/fuzztest/mmsaddress_fuzzer:fuzztest",
+                "//base/telephony/sms_mms/test/fuzztest/mmsattachment_fuzzer:fuzztest",
+                "//base/telephony/sms_mms/test/fuzztest/mmscontentparam_fuzzer:fuzztest",
+                "//base/telephony/sms_mms/test/fuzztest/mmscontenttype_fuzzer:fuzztest",
+                "//base/telephony/sms_mms/test/fuzztest/mmsdecodebuffer_fuzzer:fuzztest",
+                "//base/telephony/sms_mms/test/fuzztest/mmsencodebuffer_fuzzer:fuzztest",
+                "//base/telephony/sms_mms/test/fuzztest/mmsbodypartheader_fuzzer:fuzztest",
+                "//base/telephony/sms_mms/test/fuzztest/mmsbodypart_fuzzer:fuzztest",
+                "//base/telephony/sms_mms/test/fuzztest/mmsbody_fuzzer:fuzztest",
+                "//base/telephony/sms_mms/test/fuzztest/mmsheader_fuzzer:fuzztest",
+                "//base/telephony/sms_mms/test/fuzztest/mmsmsg_fuzzer:fuzztest",
+                "//base/telephony/sms_mms/test/fuzztest/mmscodecutils_fuzzer:fuzztest"
+            ]
         }
-      ],
-      "test": [
-        "//base/telephony/sms_mms/test:unittest",
-        "//base/telephony/sms_mms/test/fuzztest:fuzztest",
-        "//base/telephony/sms_mms/test/fuzztest/mmsaddress_fuzzer:fuzztest",
-        "//base/telephony/sms_mms/test/fuzztest/mmsattachment_fuzzer:fuzztest",
-        "//base/telephony/sms_mms/test/fuzztest/mmscontentparam_fuzzer:fuzztest",
-        "//base/telephony/sms_mms/test/fuzztest/mmscontenttype_fuzzer:fuzztest",
-        "//base/telephony/sms_mms/test/fuzztest/mmsdecodebuffer_fuzzer:fuzztest",
-        "//base/telephony/sms_mms/test/fuzztest/mmsencodebuffer_fuzzer:fuzztest",
-        "//base/telephony/sms_mms/test/fuzztest/mmsbodypartheader_fuzzer:fuzztest",
-        "//base/telephony/sms_mms/test/fuzztest/mmsbodypart_fuzzer:fuzztest",
-        "//base/telephony/sms_mms/test/fuzztest/mmsbody_fuzzer:fuzztest",
-        "//base/telephony/sms_mms/test/fuzztest/mmsheader_fuzzer:fuzztest",
-        "//base/telephony/sms_mms/test/fuzztest/mmsmsg_fuzzer:fuzztest",
-        "//base/telephony/sms_mms/test/fuzztest/mmscodecutils_fuzzer:fuzztest"
-      ]
     }
-  }
 }
