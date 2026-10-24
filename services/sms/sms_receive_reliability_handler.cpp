@@ -91,7 +91,7 @@ bool SmsReceiveReliabilityHandler::DeleteExpireSmsFromDB()
     int64_t validityDuration = std::stoi(smsExpire) * ONE_DAY_TOTAL_SECONDS;
     int64_t deadlineTime = currentTime - validityDuration;
     if (deadlineTime <= 0) {
-        TELEPHONY_LOGE("deadlineTime is negative, currentTime=%{public}lld, check device time sync", currentTime);
+        TELEPHONY_LOGE("deadlineTime is negative, currentTime=%{public}ld, check device time sync", currentTime);
         return false;
     }
 
