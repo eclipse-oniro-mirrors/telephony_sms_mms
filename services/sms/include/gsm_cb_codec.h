@@ -18,6 +18,7 @@
 
 #include <ctime>
 #include <string>
+#include <unordered_map>
 
 #include "gsm_cb_pdu_decode_buffer.h"
 
@@ -253,6 +254,8 @@ public:
     bool GetMsgType(uint8_t &msgType) const;
     bool GetLangType(uint8_t &lan) const;
     bool GetDcs(uint8_t &dcs) const;
+    bool GetLanguageCode(std::string &languageCode) const;
+    bool GetCodingGroup(uint8_t &codingGroup) const;
     bool GetReceiveTime(int64_t &receiveTime) const;
     int64_t GetRecvTime() const;
     void GetPduData(std::vector<uint8_t> &dataPdu);
@@ -268,6 +271,7 @@ public:
     std::string ToString() const;
 
 private:
+    static const std::unordered_map<uint8_t, std::string> &GetGsm7BitLangMap();
     bool PduAnalysis(const std::vector<uint8_t> &pdu);
     void DecodeIos639Dcs(const uint8_t dcsData, const unsigned short iosData, GsmCbMsgDcs &dcs) const;
     void DecodeGeneralDcs(const uint8_t dcsData, GsmCbMsgDcs &dcs) const;
