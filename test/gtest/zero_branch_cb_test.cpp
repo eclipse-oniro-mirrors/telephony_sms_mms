@@ -1302,5 +1302,232 @@ HWTEST_F(BranchCbTest, Sms_SendCacheMapLimitCheck_0001, Function | MediumTest | 
     ret = smsSender->SendCacheMapLimitCheck(sendCallback);
     EXPECT_TRUE(ret);
 }
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbLanguageCode_0001
+ * @tc.name     Test GetCodingGroup for all coding groups
+ * @tc.desc     Function test
+ */
+HWTEST_F(BranchCbTest, CbLanguageCode_0001, Function | MediumTest | Level1)
+{
+    auto cbCodec = std::make_shared<GsmCbCodec>();
+    cbCodec->cbHeader_ = std::make_shared<GsmCbCodec::GsmCbMessageHeader>();
+    uint8_t codingGroup = 0xFF;
+
+    cbCodec->cbHeader_->dcs.rawData = 0x00;
+    EXPECT_TRUE(cbCodec->GetCodingGroup(codingGroup));
+    EXPECT_EQ(codingGroup, 0x00);
+
+    cbCodec->cbHeader_->dcs.rawData = 0x11;
+    EXPECT_TRUE(cbCodec->GetCodingGroup(codingGroup));
+    EXPECT_EQ(codingGroup, 0x01);
+
+    cbCodec->cbHeader_->dcs.rawData = 0x24;
+    EXPECT_TRUE(cbCodec->GetCodingGroup(codingGroup));
+    EXPECT_EQ(codingGroup, 0x02);
+
+    cbCodec->cbHeader_->dcs.rawData = 0x3F;
+    EXPECT_TRUE(cbCodec->GetCodingGroup(codingGroup));
+    EXPECT_EQ(codingGroup, 0x03);
+
+    cbCodec->cbHeader_->dcs.rawData = 0x44;
+    EXPECT_TRUE(cbCodec->GetCodingGroup(codingGroup));
+    EXPECT_EQ(codingGroup, 0x04);
+
+    cbCodec->cbHeader_->dcs.rawData = 0xF0;
+    EXPECT_TRUE(cbCodec->GetCodingGroup(codingGroup));
+    EXPECT_EQ(codingGroup, 0x0F);
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbLanguageCode_0002
+ * @tc.name     Test GetLanguageCode for Group 0 with all GSM 7bit languages
+ * @tc.desc     Function test
+ */
+HWTEST_F(BranchCbTest, CbLanguageCode_0002, Function | MediumTest | Level1)
+{
+    auto cbCodec = std::make_shared<GsmCbCodec>();
+    cbCodec->cbHeader_ = std::make_shared<GsmCbCodec::GsmCbMessageHeader>();
+    std::string langCode;
+
+    cbCodec->cbHeader_->dcs.rawData = 0x00;
+    cbCodec->cbHeader_->dcs.langType = 0x00;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "de");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x01;
+    cbCodec->cbHeader_->dcs.langType = 0x01;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "en");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x02;
+    cbCodec->cbHeader_->dcs.langType = 0x02;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "it");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x03;
+    cbCodec->cbHeader_->dcs.langType = 0x03;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "fr");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x04;
+    cbCodec->cbHeader_->dcs.langType = 0x04;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "es");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x05;
+    cbCodec->cbHeader_->dcs.langType = 0x05;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "nl");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x06;
+    cbCodec->cbHeader_->dcs.langType = 0x06;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "sv");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x07;
+    cbCodec->cbHeader_->dcs.langType = 0x07;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "da");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x08;
+    cbCodec->cbHeader_->dcs.langType = 0x08;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "pt");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x09;
+    cbCodec->cbHeader_->dcs.langType = 0x09;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "fi");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x0A;
+    cbCodec->cbHeader_->dcs.langType = 0x0A;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "no");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x0B;
+    cbCodec->cbHeader_->dcs.langType = 0x0B;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "el");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x0C;
+    cbCodec->cbHeader_->dcs.langType = 0x0C;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "tr");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x0D;
+    cbCodec->cbHeader_->dcs.langType = 0x0D;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "hu");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x0E;
+    cbCodec->cbHeader_->dcs.langType = 0x0E;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "pl");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x0F;
+    cbCodec->cbHeader_->dcs.langType = 0x0F;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "");
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbLanguageCode_0003
+ * @tc.name     Test GetLanguageCode for Group 2 and 3
+ * @tc.desc     Function test
+ */
+HWTEST_F(BranchCbTest, CbLanguageCode_0003, Function | MediumTest | Level1)
+{
+    auto cbCodec = std::make_shared<GsmCbCodec>();
+    cbCodec->cbHeader_ = std::make_shared<GsmCbCodec::GsmCbMessageHeader>();
+    std::string langCode;
+
+    cbCodec->cbHeader_->dcs.rawData = 0x21;
+    cbCodec->cbHeader_->dcs.langType = 0x21;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "en");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x33;
+    cbCodec->cbHeader_->dcs.langType = 0x33;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "fr");
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbLanguageCode_0004
+ * @tc.name     Test GetLanguageCode for Group 1 ISO639
+ * @tc.desc     Function test
+ */
+HWTEST_F(BranchCbTest, CbLanguageCode_0004, Function | MediumTest | Level1)
+{
+    auto cbCodec = std::make_shared<GsmCbCodec>();
+    cbCodec->cbHeader_ = std::make_shared<GsmCbCodec::GsmCbMessageHeader>();
+    std::string langCode;
+
+    cbCodec->cbHeader_->dcs.rawData = 0x10;
+    cbCodec->cbHeader_->dcs.iso639Lang[0] = 0x65;
+    cbCodec->cbHeader_->dcs.iso639Lang[1] = 0x6E;
+    cbCodec->cbHeader_->dcs.iso639Lang[2] = 0x13;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "en");
+
+    cbCodec->cbHeader_->dcs.iso639Lang[0] = 0x64;
+    cbCodec->cbHeader_->dcs.iso639Lang[1] = 0x65;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "de");
+
+    cbCodec->cbHeader_->dcs.iso639Lang[0] = 0x7A;
+    cbCodec->cbHeader_->dcs.iso639Lang[1] = 0x68;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "zh");
+
+    cbCodec->cbHeader_->dcs.iso639Lang[0] = 0x00;
+    cbCodec->cbHeader_->dcs.iso639Lang[1] = 0x00;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "");
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbLanguageCode_0005
+ * @tc.name     Test GetLanguageCode for Groups 4-7 (no language)
+ * @tc.desc     Function test
+ */
+HWTEST_F(BranchCbTest, CbLanguageCode_0005, Function | MediumTest | Level1)
+{
+    auto cbCodec = std::make_shared<GsmCbCodec>();
+    cbCodec->cbHeader_ = std::make_shared<GsmCbCodec::GsmCbMessageHeader>();
+    std::string langCode;
+
+    cbCodec->cbHeader_->dcs.rawData = 0x40;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x55;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x60;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x7F;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "");
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbLanguageCode_0006
+ * @tc.name     Test GetLanguageCode and GetCodingGroup with nullptr
+ * @tc.desc     Function test
+ */
+HWTEST_F(BranchCbTest, CbLanguageCode_0006, Function | MediumTest | Level1)
+{
+    auto cbCodec = std::make_shared<GsmCbCodec>();
+    std::string langCode = "init";
+    uint8_t codingGroup = 0xFF;
+    EXPECT_FALSE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "");
+    EXPECT_FALSE(cbCodec->GetCodingGroup(codingGroup));
+}
 } // namespace Telephony
 } // namespace OHOS
