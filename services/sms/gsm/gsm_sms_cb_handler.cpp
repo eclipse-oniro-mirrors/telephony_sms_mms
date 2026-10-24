@@ -363,6 +363,15 @@ void GsmSmsCbHandler::GetCbData(const std::shared_ptr<GsmCbCodec> &cbMessage, Sm
     }
     cbMessage->GetMsgType(sendData.msgType);
     cbMessage->GetLangType(sendData.langType);
+    cbMessage->GetLanguageCode(sendData.languageCode);
+    uint8_t codingGroup = 0;
+    if (cbMessage->GetCodingGroup(codingGroup)) {
+        if (codingGroup == 0x00 || codingGroup == 0x02 || codingGroup == 0x03) {
+            sendData.langType &= 0x0F;
+        } else {
+            sendData.langType = GsmCbCodec::CB_MSG_UNSPECIFIED;
+        }
+    }
     cbMessage->GetDcs(sendData.dcs);
     cbMessage->GetPriority(sendData.priority);
     cbMessage->GetCmasMessageClass(sendData.cmasClass);
@@ -393,6 +402,7 @@ void GsmSmsCbHandler::PackageWantData(SmsCbData::CbData &sendData, EventFwk::Wan
     want.SetParam(SmsCbData::MSG_ID, static_cast<int>(sendData.msgId));
     want.SetParam(SmsCbData::SERVICE_CATEGORY, static_cast<int>(sendData.category));
     want.SetParam(SmsCbData::LANG_TYPE, static_cast<char>(sendData.langType));
+    want.SetParam(SmsCbData::LANGUAGE_CODE, sendData.languageCode);
     want.SetParam(SmsCbData::PRIORITY, static_cast<char>(sendData.priority));
     want.SetParam(SmsCbData::MSG_BODY, sendData.msgBody);
     want.SetParam(SmsCbData::CMAS_CLASS, static_cast<char>(sendData.cmasClass));
