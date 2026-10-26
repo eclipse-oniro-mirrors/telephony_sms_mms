@@ -29,6 +29,41 @@ static constexpr uint8_t SMS_BYTE_BIT = 8;
 static constexpr uint8_t GSM_CODE_BIT = 7;
 static constexpr uint8_t MAX_PAGE_PDU_LEN = 82;
 
+namespace {
+/**
+ * refer to 3GPP TS 23.040 9.2.3.24: the text starts at the first septet boundary after the user data header
+ */
+bool SkipUdhSeptets(std::string &raw, size_t pageStart, uint8_t udhl)
+{
+    size_t udhBits = static_cast<size_t>(udhl + HEX_VALUE_01) * SMS_BYTE_BIT;
+    size_t udhSeptets = (udhBits + GSM_CODE_BIT - 1) / GSM_CODE_BIT;
+    if (pageStart > raw.size() || udhSeptets > raw.size() - pageStart) {
+        TELEPHONY_LOGE("CB UDH length error.");
+        return false;
+    }
+    raw.erase(pageStart, udhSeptets);
+    return true;
+}
+
+/**
+ * refer to 3GPP TS 23.040 9.2.3.24: with a user data header the page starts with UDHL followed by the header
+ */
+bool SkipUdhOctets(bool hasUdh, const std::vector<unsigned char> &tpdu, uint16_t &offset, uint16_t &dataLen)
+{
+    if (!hasUdh || dataLen == 0 || offset >= tpdu.size()) {
+        return true;
+    }
+    uint16_t udhLen = static_cast<uint16_t>(tpdu[offset] + HEX_VALUE_01);
+    if (udhLen > dataLen) {
+        TELEPHONY_LOGE("CB UDH length error.");
+        return false;
+    }
+    offset = static_cast<uint16_t>(offset + udhLen);
+    dataLen = static_cast<uint16_t>(dataLen - udhLen);
+    return true;
+}
+} // namespace
+
 GsmCbUmtsCodec::GsmCbUmtsCodec(std::shared_ptr<GsmCbCodec::GsmCbMessageHeader> header,
     std::shared_ptr<GsmCbPduDecodeBuffer> buffer, std::shared_ptr<GsmCbCodec> cbCodec)
 {
@@ -151,41 +186,6 @@ bool GsmCbUmtsCodec::Decode3gCbMsg()
     cbHeader_->totalPages = 1;
     return decodeResult;
 }
-
-namespace {
-/**
- * refer to 3GPP TS 23.040 9.2.3.24: the text starts at the first septet boundary after the user data header
- */
-bool SkipUdhSeptets(std::string &raw, size_t pageStart, uint8_t udhl)
-{
-    size_t udhBits = static_cast<size_t>(udhl + HEX_VALUE_01) * SMS_BYTE_BIT;
-    size_t udhSeptets = (udhBits + GSM_CODE_BIT - 1) / GSM_CODE_BIT;
-    if (pageStart > raw.size() || udhSeptets > raw.size() - pageStart) {
-        TELEPHONY_LOGE("CB UDH length error.");
-        return false;
-    }
-    raw.erase(pageStart, udhSeptets);
-    return true;
-}
-
-/**
- * refer to 3GPP TS 23.040 9.2.3.24: with a user data header the page starts with UDHL followed by the header
- */
-bool SkipUdhOctets(bool hasUdh, const std::vector<unsigned char> &tpdu, uint16_t &offset, uint16_t &dataLen)
-{
-    if (!hasUdh || dataLen == 0 || offset >= tpdu.size()) {
-        return true;
-    }
-    uint16_t udhLen = static_cast<uint16_t>(tpdu[offset] + HEX_VALUE_01);
-    if (udhLen > dataLen) {
-        TELEPHONY_LOGE("CB UDH length error.");
-        return false;
-    }
-    offset = static_cast<uint16_t>(offset + udhLen);
-    dataLen = static_cast<uint16_t>(dataLen - udhLen);
-    return true;
-}
-} // namespace
 
 bool GsmCbUmtsCodec::Decode3g7Bit()
 {
