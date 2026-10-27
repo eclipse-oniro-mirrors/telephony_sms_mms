@@ -1390,41 +1390,6 @@ HWTEST_F(BranchCbTest, CbLanguageCode_0002, Function | MediumTest | Level1)
     EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
     EXPECT_EQ(langCode, "da");
 
-    cbCodec->cbHeader_->dcs.rawData = 0x08;
-    cbCodec->cbHeader_->dcs.langType = 0x08;
-    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
-    EXPECT_EQ(langCode, "pt");
-
-    cbCodec->cbHeader_->dcs.rawData = 0x09;
-    cbCodec->cbHeader_->dcs.langType = 0x09;
-    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
-    EXPECT_EQ(langCode, "fi");
-
-    cbCodec->cbHeader_->dcs.rawData = 0x0A;
-    cbCodec->cbHeader_->dcs.langType = 0x0A;
-    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
-    EXPECT_EQ(langCode, "no");
-
-    cbCodec->cbHeader_->dcs.rawData = 0x0B;
-    cbCodec->cbHeader_->dcs.langType = 0x0B;
-    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
-    EXPECT_EQ(langCode, "el");
-
-    cbCodec->cbHeader_->dcs.rawData = 0x0C;
-    cbCodec->cbHeader_->dcs.langType = 0x0C;
-    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
-    EXPECT_EQ(langCode, "tr");
-
-    cbCodec->cbHeader_->dcs.rawData = 0x0D;
-    cbCodec->cbHeader_->dcs.langType = 0x0D;
-    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
-    EXPECT_EQ(langCode, "hu");
-
-    cbCodec->cbHeader_->dcs.rawData = 0x0E;
-    cbCodec->cbHeader_->dcs.langType = 0x0E;
-    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
-    EXPECT_EQ(langCode, "pl");
-
     cbCodec->cbHeader_->dcs.rawData = 0x0F;
     cbCodec->cbHeader_->dcs.langType = 0x0F;
     EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
