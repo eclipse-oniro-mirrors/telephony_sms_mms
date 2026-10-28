@@ -510,8 +510,9 @@ bool GsmUserDataPdu::DecodeHeaderConcat16Bit(SmsReadBuffer &buffer, struct SmsUD
         TELEPHONY_LOGE("get data error.");
         return false;
     }
-    oneByte |= pHeader.udh.concat16bit.msgRef << NORMAL_BYTE_BITS;
-    pHeader.udh.concat16bit.msgRef = static_cast<uint16_t>(oneByte);
+    uint16_t ref = static_cast<uint16_t>(oneByte);
+    ref |= static_cast<uint16_t>(pHeader.udh.concat16bit.msgRef) << NORMAL_BYTE_BITS;
+    pHeader.udh.concat16bit.msgRef = ref;
 
     if (!buffer.ReadByte(oneByte)) {
         TELEPHONY_LOGE("get data error.");

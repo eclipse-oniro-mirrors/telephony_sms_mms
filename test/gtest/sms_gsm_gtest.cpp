@@ -457,5 +457,49 @@ HWTEST_F(SmsGsmTest, ShortMessage_001, Function | MediumTest | Level1)
     EXPECT_TRUE(shortMessage->Marshalling(parcel));
     EXPECT_TRUE(shortMessage->ReadFromParcel(parcel));
 }
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_GsmUserDataPdu_001
+ * @tc.name     GsmUserDataPdu_001
+ * @tc.desc     Function test DecodeHeaderConcat16Bit with non-zero high byte of msgRef
+ */
+HWTEST_F(SmsGsmTest, GsmUserDataPdu_001, Function | MediumTest | Level1)
+{
+    auto userDataPdu = std::make_shared<GsmUserDataPdu>();
+    std::string pduData;
+    pduData.push_back(0x04);
+    pduData.push_back(0x12);
+    pduData.push_back(0x34);
+    pduData.push_back(0x02);
+    pduData.push_back(0x01);
+    SmsReadBuffer buffer(pduData);
+    struct SmsUDH header = {};
+    EXPECT_TRUE(userDataPdu->DecodeHeaderConcat16Bit(buffer, header));
+    EXPECT_EQ(header.udh.concat16bit.msgRef, 0x1234);
+    EXPECT_EQ(header.udh.concat16bit.totalSeg, 0x02);
+    EXPECT_EQ(header.udh.concat16bit.seqNum, 0x01);
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_GsmUserDataPdu_002
+ * @tc.name     GsmUserDataPdu_002
+ * @tc.desc     Function test DecodeHeaderConcat16Bit with zero high byte of msgRef
+ */
+HWTEST_F(SmsGsmTest, GsmUserDataPdu_002, Function | MediumTest | Level1)
+{
+    auto userDataPdu = std::make_shared<GsmUserDataPdu>();
+    std::string pduData;
+    pduData.push_back(0x04);
+    pduData.push_back(0x00);
+    pduData.push_back(0x56);
+    pduData.push_back(0x03);
+    pduData.push_back(0x02);
+    SmsReadBuffer buffer(pduData);
+    struct SmsUDH header = {};
+    EXPECT_TRUE(userDataPdu->DecodeHeaderConcat16Bit(buffer, header));
+    EXPECT_EQ(header.udh.concat16bit.msgRef, 0x0056);
+    EXPECT_EQ(header.udh.concat16bit.totalSeg, 0x03);
+    EXPECT_EQ(header.udh.concat16bit.seqNum, 0x02);
+}
 }
 }
