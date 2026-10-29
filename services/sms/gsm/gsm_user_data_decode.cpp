@@ -234,13 +234,10 @@ bool GsmUserDataDecode::Decode8bitPduPartData(SmsReadBuffer &buffer, bool bHeade
         userData->headerCnt = 0;
     }
 
-    if (udhl > 0 && udl >= udhl + 1) {
-        userData->length = (udl) - (udhl + 1);
-        buffer.MoveForward(HEX_VALUE_01);
-    } else {
-        userData->length = udl;
-    }
-    if (udl > sizeof(pTPUD->ud) || buffer.GetIndex() > buffer.GetSize()) {
+    // 3GPP TS 23.040 9.2.3.24: the short message body starts right after the UDHL octets of UDH
+    bool bodyFound = (udhl == 0) || buffer.SetIndex(static_cast<uint16_t>(current + udhl));
+    userData->length = (udhl > 0 && udl >= udhl + 1) ? static_cast<uint8_t>(udl - (udhl + 1)) : udl;
+    if (!bodyFound || udl > sizeof(pTPUD->ud) || buffer.GetIndex() > buffer.GetSize()) {
         TELEPHONY_LOGE("udl length or buffer error");
         return false;
     }
