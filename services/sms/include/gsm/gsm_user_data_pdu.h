@@ -29,6 +29,7 @@ public:
     bool DecodeUserDataPdu(SmsReadBuffer &buffer, bool bHeaderInd, DataCodingScheme CodingScheme,
         struct SmsUDPackage *pUserData, struct SmsTpud *pTPUD);
     bool DecodeHeader(SmsReadBuffer &buffer, struct SmsUDH &pHeader, uint16_t &headerLen);
+    bool DecodeHeaderList(SmsReadBuffer &buffer, uint16_t udhStart, uint8_t udhl, struct SmsUDPackage &userData);
     void DebugDecodeHeader(const struct SmsUDH &pHeader);
     bool EncodeUserDataPdu(SmsWriteBuffer &buffer, const struct SmsUDPackage *(&pUserData),
         DataCodingScheme codingScheme, std::string &destAddr);
