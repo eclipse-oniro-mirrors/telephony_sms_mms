@@ -331,7 +331,9 @@ bool SmsReceiveHandler::CombineMultiPageMessage(const std::shared_ptr<SmsReceive
         ->And()
         ->EqualTo(SmsSubsection::SMS_SUBSECTION_ID, std::to_string(indexer->GetMsgRefId()))
         ->And()
-        ->EqualTo(SmsSubsection::SIZE, std::to_string(indexer->GetMsgCount()));
+        ->EqualTo(SmsSubsection::SIZE, std::to_string(indexer->GetMsgCount()))
+        ->And()
+        ->EqualTo(SmsSubsection::SLOT_ID, std::to_string(slotId_));
     DelayedSingleton<SmsPersistHelper>::GetInstance()->Query(predicates, dbIndexers);
     int8_t count = 0;
     for (const auto &v : dbIndexers) {
@@ -401,7 +403,9 @@ bool SmsReceiveHandler::IsRepeatedMessagePart(const shared_ptr<SmsReceiveIndexer
             ->And()
             ->EqualTo(SmsSubsection::SMS_SUBSECTION_ID, std::to_string(smsIndexer->GetMsgRefId()))
             ->And()
-            ->EqualTo(SmsSubsection::SIZE, std::to_string(smsIndexer->GetMsgCount()));
+            ->EqualTo(SmsSubsection::SIZE, std::to_string(smsIndexer->GetMsgCount()))
+            ->And()
+            ->EqualTo(SmsSubsection::SLOT_ID, std::to_string(slotId_));
         DelayedSingleton<SmsPersistHelper>::GetInstance()->Query(predicates, dbIndexers);
 
         for (const auto &it : dbIndexers) {
@@ -441,6 +445,28 @@ bool SmsReceiveHandler::AddMsgToDB(const std::shared_ptr<SmsReceiveIndexer> inde
             SmsMmsErrorCode::SMS_ERROR_ADD_TO_DATABASE_FAIL, "add msg to database error");
     }
     return ret;
+}
+
+/*
+ * 3GPP TS 23.040 9.2.3.24.1 / 9.2.3.24.8: if the maximum number of short messages is 0, or the sequence number is 0
+ * or greater than the maximum number, the receiving entity shall ignore the whole Information Element, so such a
+ * message is handled as a single short message. Returns nullptr when the message is not a valid concatenated one.
+ */
+std::shared_ptr<SmsConcat> SmsReceiveHandler::GetValidConcatMsg(const std::shared_ptr<SmsBaseMessage> &smsBaseMessage)
+{
+    if (smsBaseMessage == nullptr) {
+        return nullptr;
+    }
+    std::shared_ptr<SmsConcat> smsConcat = smsBaseMessage->GetConcatMsg();
+    if (smsConcat == nullptr) {
+        return nullptr;
+    }
+    if ((smsConcat->totalSeg == 0) || (smsConcat->seqNum == 0) || (smsConcat->seqNum > smsConcat->totalSeg)) {
+        TELEPHONY_LOGE("invalid concat ie, seq %{public}d total %{public}d, ignore it",
+            static_cast<int>(smsConcat->seqNum), static_cast<int>(smsConcat->totalSeg));
+        return nullptr;
+    }
+    return smsConcat;
 }
 } // namespace Telephony
 } // namespace OHOS
