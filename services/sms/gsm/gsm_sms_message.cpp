@@ -579,6 +579,30 @@ void GsmSmsMessage::ConvertUserData()
     ConvertUserPartData();
 }
 
+/*
+ * 3GPP TS 23.040 9.2.3.24.15 / 9.2.3.24.16: the national language tables are selected by the single shift
+ * IE (0x24) and the locking shift IE (0x25) wherever they appear in the UDH; the last occurrence applies.
+ * Locking shift is only applied for the tables TextCoder implements, others fall back to the default alphabet.
+ */
+MsgLangInfo GsmSmsMessage::GetNationalLangInfo() const
+{
+    MsgLangInfo langInfo;
+    for (uint8_t i = 0; i < smsUserData_.headerCnt && i < MAX_UD_HEADER_NUM; i++) {
+        const struct SmsUDH &header = smsUserData_.header[i];
+        if (header.udhType == UDH_SINGLE_SHIFT) {
+            langInfo.bSingleShift = true;
+            langInfo.singleLang = header.udh.singleShift.langId;
+        } else if (header.udhType == UDH_LOCKING_SHIFT) {
+            bool supported = header.udh.lockingShift.langId == MSG_ID_TURKISH_LANG ||
+                header.udh.lockingShift.langId == MSG_ID_PORTUGUESE_LANG;
+            langInfo.bLockingShift = supported;
+            langInfo.lockingLang =
+                supported ? header.udh.lockingShift.langId : static_cast<MSG_LANGUAGE_ID_T>(MSG_ID_RESERVED_LANG);
+        }
+    }
+    return langInfo;
+}
+
 void GsmSmsMessage::ConvertUserPartData()
 {
     if (smsUserData_.length == 0) {
@@ -587,12 +611,7 @@ void GsmSmsMessage::ConvertUserPartData()
     }
     uint8_t buff[MAX_MSG_TEXT_LEN + 1] = { 0 };
     if (codingScheme_ == DATA_CODING_7BIT) {
-        MsgLangInfo langInfo;
-        auto langId = smsUserData_.header[0].udh.singleShift.langId;
-        if (langId != 0) {
-            langInfo.bSingleShift = true;
-            langInfo.singleLang = langId;
-        }
+        MsgLangInfo langInfo = GetNationalLangInfo();
         int dataSize = TextCoder::Instance().Gsm7bitToUtf8(
             buff, MAX_MSG_TEXT_LEN, reinterpret_cast<uint8_t *>(smsUserData_.data), smsUserData_.length, langInfo);
         visibleMessageBody_.insert(0, reinterpret_cast<char *>(buff), dataSize);
