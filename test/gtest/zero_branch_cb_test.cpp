@@ -22,6 +22,7 @@
 #include "gtest/gtest.h"
 #include "radio_event.h"
 #include "sms_service.h"
+#include "telephony_ext_wrapper.h"
 
 namespace OHOS {
 namespace Telephony {
@@ -569,6 +570,90 @@ HWTEST_F(BranchCbTest, GsmCbGsmCodec_0005, Function | MediumTest | Level1)
     cbMsg->cbHeader_->totalPages = 1;
     umtsMsg->Decode3g7Bit();
     EXPECT_FALSE(umtsMsg->Decode3gUCS2());
+}
+
+namespace {
+const std::string UMTS_7BIT_PDU =
+    "010032C000400174747A0E4ACF41E8B0BCFD76E741EF39685C66B3C5F277983"
+    "C0ECFE9207A794E07DD84693AA8EC1EBFC96550B54D9F83C8617A9845479741"
+    "37719A0EAAB7E973D038EC060DC372791ED47ECBCB2072981E0652";
+const std::string UMTS_7BIT_TEXT =
+    "this is harmony os cellbroadcast test 7Bit encode Umts data,the 7bit umts can Carry more data";
+const std::vector<unsigned char> PACKED_ABCDEFGH = { 0x61, 0xF1, 0x98, 0x5C, 0x36, 0x9F, 0xD1 };
+const std::vector<unsigned char> PACKED_ABCDEFGHI = { 0x61, 0xF1, 0x98, 0x5C, 0x36, 0x9F, 0xD1, 0x69 };
+constexpr size_t UMTS_CB_HEADER_LEN = 7;
+constexpr size_t UMTS_CB_PAGE_LEN = 82;
+
+std::vector<unsigned char> BuildUmts7bitPdu(const std::vector<std::pair<std::vector<unsigned char>, uint8_t>> &pages)
+{
+    std::vector<unsigned char> pdu = { 0x01, 0x00, 0x32, 0x40, 0x00, 0x01, static_cast<unsigned char>(pages.size()) };
+    for (auto &page : pages) {
+        std::vector<unsigned char> content = page.first;
+        content.resize(UMTS_CB_PAGE_LEN, 0x00);
+        pdu.insert(pdu.end(), content.begin(), content.end());
+        pdu.push_back(page.second);
+    }
+    return pdu;
+}
+} // namespace
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_Decode3g7BitPageLength_0001
+ * @tc.name     Test Decode3g7Bit with a full page
+ * @tc.desc     Function test, MIL is a number of octets, 82 octets carry 93 characters (3GPP TS 23.041 9.4.2.2.5)
+ */
+HWTEST_F(BranchCbTest, Decode3g7BitPageLength_0001, Function | MediumTest | Level1)
+{
+    auto cbMsg = GsmCbCodec::CreateCbMessage(UMTS_7BIT_PDU);
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw().size(), UMTS_7BIT_TEXT.size());
+    std::string body;
+    cbMsg->ConvertToUTF8(cbMsg->GetCbMessageRaw(), body);
+    EXPECT_EQ(body, UMTS_7BIT_TEXT);
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_Decode3g7BitPageLength_0002
+ * @tc.name     Test Decode3g7Bit page length boundaries
+ * @tc.desc     Function test, MIL 0/1/7/8 decode 0/1/8/9 characters, MIL 83 is rejected
+ */
+HWTEST_F(BranchCbTest, Decode3g7BitPageLength_0002, Function | MediumTest | Level1)
+{
+    auto cbMsg = GsmCbCodec::CreateCbMessage(BuildUmts7bitPdu({ { {}, 0 } }));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_TRUE(cbMsg->GetCbMessageRaw().empty());
+ 
+    cbMsg = GsmCbCodec::CreateCbMessage(BuildUmts7bitPdu({ { { 0x61 }, 1 } }));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw(), "a");
+ 
+    cbMsg = GsmCbCodec::CreateCbMessage(BuildUmts7bitPdu({ { PACKED_ABCDEFGH, PACKED_ABCDEFGH.size() } }));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw(), "abcdefgh");
+ 
+    cbMsg = GsmCbCodec::CreateCbMessage(BuildUmts7bitPdu({ { PACKED_ABCDEFGHI, PACKED_ABCDEFGHI.size() } }));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw(), "abcdefghi");
+ 
+    cbMsg = GsmCbCodec::CreateCbMessage(BuildUmts7bitPdu({ { PACKED_ABCDEFGH, UMTS_CB_PAGE_LEN + 1 } }));
+    EXPECT_EQ(cbMsg, nullptr);
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_Decode3g7BitPageLength_0003
+ * @tc.name     Test Decode3g7Bit with two pages
+ * @tc.desc     Function test, every page is decoded with its own MIL
+ */
+HWTEST_F(BranchCbTest, Decode3g7BitPageLength_0003, Function | MediumTest | Level1)
+{
+    std::vector<unsigned char> fullPdu = StringUtils::HexToByteVector(UMTS_7BIT_PDU);
+    ASSERT_GE(fullPdu.size(), UMTS_CB_HEADER_LEN + UMTS_CB_PAGE_LEN);
+    std::vector<unsigned char> fullPage(
+        fullPdu.begin() + UMTS_CB_HEADER_LEN, fullPdu.begin() + UMTS_CB_HEADER_LEN + UMTS_CB_PAGE_LEN);
+    auto cbMsg = GsmCbCodec::CreateCbMessage(
+        BuildUmts7bitPdu({ { PACKED_ABCDEFGHI, PACKED_ABCDEFGHI.size() }, { fullPage, UMTS_CB_PAGE_LEN } }));
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_EQ(cbMsg->GetCbMessageRaw(), "abcdefghi" + UMTS_7BIT_TEXT);
 }
 
 /**
@@ -1194,6 +1279,237 @@ HWTEST_F(BranchCbTest, GsmCbCodecIsEtws_0001, Function | MediumTest | Level1)
 
     ret = cbMsg->IsEtwsPopupAlert(alert);
     EXPECT_FALSE(ret);
+}
+
+namespace {
+// serial 0x3000, msgId 0x1100 (earthquake), warning type 0x0180, 50 octets Warning-Security-Information
+constexpr const char *ETWS_PRIMARY_56_PDU =
+    "3000110001804201912143000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+constexpr const char *ETWS_PRIMARY_7_PDU = "30001100018042";
+// serial 0x3000, msgId 0x1100, DCS 0x01, page 1/1, "Earthquake warning" padded with CR
+constexpr const char *ETWS_SECONDARY_GSM_PDU =
+    "300011000111C5B09C8E8ED7C3EB32E81E96BBD3EE73A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8"
+    "D46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D100";
+// serial 0x0000, msgId 0x1100, warning type 0 (earthquake), emergency user alert 1, popup 1
+constexpr const char *ETWS_PRIMARY_ALERT_POPUP_PDU = "000011000180";
+// serial 0x3000 (emergency user alert and popup bits set), msgId 0x1104, warning type 1 (tsunami), both bits clear
+constexpr const char *ETWS_PRIMARY_TSUNAMI_PDU = "300011040200";
+// serial 0x3000, msgId 50 (not ETWS), DCS 0x01, page 1/1
+constexpr const char *CBS_MSG_ID_50_PDU =
+    "300000320111C5B09C8E8ED7C3EB32E81E96BBD3EE73A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8D"
+    "46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D100";
+constexpr uint16_t WARNING_TYPE_EARTHQUAKE = 0;
+constexpr uint16_t WARNING_TYPE_TSUNAMI = 1;
+constexpr uint16_t WARNING_TYPE_CUSTOMIZED = 3;
+
+// a vendor hook that does not customize the channel and leaves the type untouched
+void CustEtwsTypeUntouched(uint16_t channel, uint16_t &type)
+{
+    (void)channel;
+    (void)type;
+}
+
+// a vendor hook that customizes every channel
+void CustEtwsTypeCustomized(uint16_t channel, uint16_t &type)
+{
+    (void)channel;
+    type = WARNING_TYPE_CUSTOMIZED;
+}
+} // namespace
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_DecodeEtwsPrimary_0001
+ * @tc.name     Test ETWS primary notification decoding
+ * @tc.desc     Function test, Warning-Security-Information is not decoded as text (3GPP TS 23.041 9.4.1.3)
+ */
+HWTEST_F(BranchCbTest, DecodeEtwsPrimary_0001, Function | MediumTest | Level1)
+{
+    std::vector<std::string> primaryPdus = { ETWS_PRIMARY_56_PDU, ETWS_PRIMARY_7_PDU, ETWS_PDU };
+    for (auto &pdu : primaryPdus) {
+        auto cbMsg = GsmCbCodec::CreateCbMessage(pdu);
+        ASSERT_NE(cbMsg, nullptr);
+        bool isPrimary = false;
+        EXPECT_TRUE(cbMsg->IsEtwsPrimary(isPrimary));
+        EXPECT_TRUE(isPrimary);
+        EXPECT_TRUE(cbMsg->GetCbMessageRaw().empty());
+        std::string body;
+        cbMsg->ConvertToUTF8(cbMsg->GetCbMessageRaw(), body);
+        EXPECT_TRUE(body.empty());
+    }
+
+    auto cbMsg = GsmCbCodec::CreateCbMessage(ETWS_SECONDARY_GSM_PDU);
+    ASSERT_NE(cbMsg, nullptr);
+    bool isPrimary = true;
+    EXPECT_TRUE(cbMsg->IsEtwsPrimary(isPrimary));
+    EXPECT_FALSE(isPrimary);
+    EXPECT_FALSE(cbMsg->GetCbMessageRaw().empty());
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_DecodeEtwsPrimary_0002
+ * @tc.name     Test ETWS primary notification want data
+ * @tc.desc     Function test, an ETWS primary notification is published as an emergency cell broadcast
+ */
+HWTEST_F(BranchCbTest, DecodeEtwsPrimary_0002, Function | MediumTest | Level1)
+{
+    auto gsmSmsCbHandler = std::make_shared<GsmSmsCbHandler>(INVALID_SLOTID);
+    auto cbMsg = GsmCbCodec::CreateCbMessage(ETWS_PRIMARY_56_PDU);
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_TRUE(gsmSmsCbHandler->AddCbMessageToList(cbMsg));
+    EventFwk::Want want;
+    EXPECT_TRUE(gsmSmsCbHandler->SetWantData(want, cbMsg));
+    EXPECT_EQ(want.GetAction(), EventFwk::CommonEventSupport::COMMON_EVENT_SMS_EMERGENCY_CB_RECEIVE_COMPLETED);
+    EXPECT_TRUE(want.GetBoolParam(SmsCbData::IS_ETWS_PRIMARY, false));
+    EXPECT_TRUE(want.GetBoolParam(SmsCbData::IS_ETWS_MESSAGE, false));
+    EXPECT_TRUE(want.GetStringParam(SmsCbData::MSG_BODY).empty());
+
+    auto secondary = GsmCbCodec::CreateCbMessage(ETWS_SECONDARY_GSM_PDU);
+    ASSERT_NE(secondary, nullptr);
+    gsmSmsCbHandler->cbMsgList_.clear();
+    EXPECT_TRUE(gsmSmsCbHandler->AddCbMessageToList(secondary));
+    EventFwk::Want secondaryWant;
+    EXPECT_TRUE(gsmSmsCbHandler->SetWantData(secondaryWant, secondary));
+    EXPECT_EQ(secondaryWant.GetAction(), EventFwk::CommonEventSupport::COMMON_EVENT_SMS_CB_RECEIVE_COMPLETED);
+    EXPECT_FALSE(secondaryWant.GetBoolParam(SmsCbData::IS_ETWS_PRIMARY, true));
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbEtwsPrimaryHeaderOnly_0001
+ * @tc.name     Test ETWS primary notification without Warning-Security-Information
+ * @tc.desc     Function test, a 6 octet ETWS primary notification is accepted, a shorter one is rejected
+ */
+HWTEST_F(BranchCbTest, CbEtwsPrimaryHeaderOnly_0001, Function | MediumTest | Level1)
+{
+    auto cbMsg = GsmCbCodec::CreateCbMessage("300011000180");
+    ASSERT_NE(cbMsg, nullptr);
+    bool isPrimary = false;
+    EXPECT_TRUE(cbMsg->IsEtwsPrimary(isPrimary));
+    EXPECT_TRUE(isPrimary);
+    bool isEtws = false;
+    EXPECT_TRUE(cbMsg->IsEtwsMessage(isEtws));
+    EXPECT_TRUE(isEtws);
+    EXPECT_TRUE(cbMsg->GetCbMessageRaw().empty());
+    EXPECT_TRUE(cbMsg->IsSinglePageMsg());
+
+    EXPECT_EQ(GsmCbCodec::CreateCbMessage("3000110001"), nullptr);
+    EXPECT_EQ(GsmCbCodec::CreateCbMessage("300000320180"), nullptr);
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbEtwsWarningType_0001
+ * @tc.name     Test ETWS primary notification Warning-Type
+ * @tc.desc     Function test, warning type, emergency user alert and popup come from the Warning-Type (3GPP TS 23.041
+ *              9.3.24) and are not derived from the message identifier or the serial number
+ */
+HWTEST_F(BranchCbTest, CbEtwsWarningType_0001, Function | MediumTest | Level1)
+{
+    auto cbMsg = GsmCbCodec::CreateCbMessage(ETWS_PRIMARY_ALERT_POPUP_PDU);
+    ASSERT_NE(cbMsg, nullptr);
+    uint16_t warningType = GsmCbCodec::ETWS_WARNING_TYPE_UNKNOWN;
+    bool userAlert = false;
+    bool popup = false;
+    EXPECT_TRUE(cbMsg->GetWarningType(warningType));
+    EXPECT_EQ(warningType, WARNING_TYPE_EARTHQUAKE);
+    EXPECT_TRUE(cbMsg->IsEtwsEmergencyUserAlert(userAlert));
+    EXPECT_TRUE(userAlert);
+    EXPECT_TRUE(cbMsg->IsEtwsPopupAlert(popup));
+    EXPECT_TRUE(popup);
+    EXPECT_TRUE(cbMsg->GetCbHeader()->bEtwsEmergencyUserAlert);
+    EXPECT_TRUE(cbMsg->GetCbHeader()->bEtwsPopup);
+
+    cbMsg = GsmCbCodec::CreateCbMessage(ETWS_PRIMARY_TSUNAMI_PDU);
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_TRUE(cbMsg->GetWarningType(warningType));
+    EXPECT_EQ(warningType, WARNING_TYPE_TSUNAMI);
+    EXPECT_EQ(cbMsg->GetCbHeader()->warningType, WARNING_TYPE_TSUNAMI);
+    userAlert = true;
+    popup = true;
+    EXPECT_TRUE(cbMsg->IsEtwsEmergencyUserAlert(userAlert));
+    EXPECT_FALSE(userAlert);
+    EXPECT_TRUE(cbMsg->IsEtwsPopupAlert(popup));
+    EXPECT_FALSE(popup);
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbEtwsWarningType_0002
+ * @tc.name     Test warning type of ETWS secondary and non ETWS messages
+ * @tc.desc     Function test, a secondary notification uses the message identifier and the serial number,
+ *              a non ETWS message has no warning type and no ETWS alert flags
+ */
+HWTEST_F(BranchCbTest, CbEtwsWarningType_0002, Function | MediumTest | Level1)
+{
+    auto cbMsg = GsmCbCodec::CreateCbMessage(ETWS_SECONDARY_GSM_PDU);
+    ASSERT_NE(cbMsg, nullptr);
+    uint16_t warningType = GsmCbCodec::ETWS_WARNING_TYPE_UNKNOWN;
+    bool userAlert = false;
+    bool popup = false;
+    EXPECT_TRUE(cbMsg->GetWarningType(warningType));
+    EXPECT_EQ(warningType, WARNING_TYPE_EARTHQUAKE);
+    EXPECT_TRUE(cbMsg->IsEtwsEmergencyUserAlert(userAlert));
+    EXPECT_TRUE(userAlert);
+    EXPECT_TRUE(cbMsg->IsEtwsPopupAlert(popup));
+    EXPECT_TRUE(popup);
+
+    cbMsg = GsmCbCodec::CreateCbMessage(CBS_MSG_ID_50_PDU);
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_TRUE(cbMsg->GetWarningType(warningType));
+    EXPECT_EQ(warningType, GsmCbCodec::ETWS_WARNING_TYPE_UNKNOWN);
+    EXPECT_TRUE(cbMsg->IsEtwsEmergencyUserAlert(userAlert));
+    EXPECT_FALSE(userAlert);
+    EXPECT_TRUE(cbMsg->IsEtwsPopupAlert(popup));
+    EXPECT_FALSE(popup);
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbEtwsWarningType_0003
+ * @tc.name     Test ETWS warning type want data
+ * @tc.desc     Function test, the want carries the Warning-Type fields of an ETWS message and an invalid warning type
+ *              for a non ETWS message
+ */
+HWTEST_F(BranchCbTest, CbEtwsWarningType_0003, Function | MediumTest | Level1)
+{
+    auto gsmSmsCbHandler = std::make_shared<GsmSmsCbHandler>(INVALID_SLOTID);
+    auto cbMsg = GsmCbCodec::CreateCbMessage(ETWS_PRIMARY_ALERT_POPUP_PDU);
+    ASSERT_NE(cbMsg, nullptr);
+    EXPECT_TRUE(gsmSmsCbHandler->AddCbMessageToList(cbMsg));
+    EventFwk::Want want;
+    EXPECT_TRUE(gsmSmsCbHandler->SetWantData(want, cbMsg));
+    EXPECT_EQ(want.GetAction(), EventFwk::CommonEventSupport::COMMON_EVENT_SMS_EMERGENCY_CB_RECEIVE_COMPLETED);
+    EXPECT_EQ(want.GetIntParam(SmsCbData::WARNING_TYPE, SmsCbData::INVALID_WARNING_TYPE), WARNING_TYPE_EARTHQUAKE);
+    EXPECT_TRUE(want.GetBoolParam(SmsCbData::IS_ETWS_EMERGENCY_USER_ALERT, false));
+    EXPECT_TRUE(want.GetBoolParam(SmsCbData::IS_ETWS_POPUP_ALERT, false));
+
+    auto cbsMsg = GsmCbCodec::CreateCbMessage(CBS_MSG_ID_50_PDU);
+    ASSERT_NE(cbsMsg, nullptr);
+    gsmSmsCbHandler->cbMsgList_.clear();
+    EXPECT_TRUE(gsmSmsCbHandler->AddCbMessageToList(cbsMsg));
+    EventFwk::Want cbsWant;
+    EXPECT_TRUE(gsmSmsCbHandler->SetWantData(cbsWant, cbsMsg));
+    EXPECT_EQ(cbsWant.GetAction(), EventFwk::CommonEventSupport::COMMON_EVENT_SMS_CB_RECEIVE_COMPLETED);
+    EXPECT_EQ(cbsWant.GetIntParam(SmsCbData::WARNING_TYPE, 0), SmsCbData::INVALID_WARNING_TYPE);
+    EXPECT_FALSE(cbsWant.GetBoolParam(SmsCbData::IS_ETWS_EMERGENCY_USER_ALERT, true));
+    EXPECT_FALSE(cbsWant.GetBoolParam(SmsCbData::IS_ETWS_POPUP_ALERT, true));
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbEtwsWarningType_0004
+ * @tc.name     Test ETWS warning type with a vendor hook
+ * @tc.desc     Function test, a channel the vendor hook leaves untouched falls back to the Warning-Type of the PDU
+ */
+HWTEST_F(BranchCbTest, CbEtwsWarningType_0004, Function | MediumTest | Level1)
+{
+    auto cbMsg = GsmCbCodec::CreateCbMessage(ETWS_PRIMARY_TSUNAMI_PDU);
+    ASSERT_NE(cbMsg, nullptr);
+    auto savedHook = TELEPHONY_EXT_WRAPPER.getCustEtwsType_;
+    TELEPHONY_EXT_WRAPPER.getCustEtwsType_ = CustEtwsTypeUntouched;
+    uint16_t warningType = GsmCbCodec::ETWS_WARNING_TYPE_UNKNOWN;
+    EXPECT_TRUE(cbMsg->GetWarningType(warningType));
+    EXPECT_EQ(warningType, WARNING_TYPE_TSUNAMI);
+ 
+    TELEPHONY_EXT_WRAPPER.getCustEtwsType_ = CustEtwsTypeCustomized;
+    EXPECT_TRUE(cbMsg->GetWarningType(warningType));
+    EXPECT_EQ(warningType, WARNING_TYPE_CUSTOMIZED);
+    TELEPHONY_EXT_WRAPPER.getCustEtwsType_ = savedHook;
 }
 
 /**
