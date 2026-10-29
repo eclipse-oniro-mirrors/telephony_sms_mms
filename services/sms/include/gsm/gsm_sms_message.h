@@ -62,6 +62,8 @@ public:
     void ConvertMsgTimeStamp(const struct SmsTimeStamp &times);
     bool IsSpecialMessage() const;
     void SetSmsCodingNationalType(SmsCodingNationalType smsCodingNationalType);
+    int GetSegmentSize(
+        DataCodingScheme &codingScheme, int dataLen, bool bPortNum, MSG_LANGUAGE_ID_T &langId) const override;
 
 private:
     void AnalysisMsgDeliver(const SmsDeliver &deliver);
