@@ -132,16 +132,14 @@ bool GsmCbCodec::PduAnalysis(const std::vector<unsigned char> &pdu)
         TELEPHONY_LOGE("pdu size over max.");
         return false;
     }
-
+    if (decodeResult && cbHeader_->bEtwsMessage && cbHeader_->cbEtwsType == ETWS_PRIMARY) {
+        // refer to 3GPP TS 23.041 9.4.1.3: the security information after the 6 octet header is optional and not text
+        return true;
+    }
     if (!decodeResult || cbPduBuffer_->GetCurPosition() >= pdu.size()) {
         TELEPHONY_LOGE("CB decode head fail.");
         return false;
     }
-    if (cbHeader_->bEtwsMessage && cbHeader_->cbEtwsType == ETWS_PRIMARY) {
-        PduAfterDiscardNullBlock(pdu);
-        return gsmCodec->DecodeEtwsMsg();
-    }
-
     if (cbHeader_->cbNetType == GSM_NET_CB) {
         PduAfterDiscardNullBlock(pdu);
         decodeResult = gsmCodec->Decode2gCbMsg();
@@ -518,13 +516,26 @@ bool GsmCbCodec::GetWarningType(uint16_t &type) const
     }
     if (TELEPHONY_EXT_WRAPPER.getCustEtwsType_  != nullptr) {
         TELEPHONY_LOGI("GetWarningType getCustEtwsType_  not null");
+        // a channel the vendor does not customize must fall through to the protocol rules below,
+        // whatever value the caller passed in
+        type = OTHER_TYPE;
         TELEPHONY_EXT_WRAPPER.getCustEtwsType_(cbHeader_->msgId, type);
         if (type != OTHER_TYPE) {
             TELEPHONY_LOGI("getCustEtwsType_ type not OTHER_TYPE.");
             return true;
         }
     }
-    type = cbHeader_->msgId - ETWS_TYPE;
+    // refer to 3GPP TS 23.041 9.3.24: an ETWS primary notification carries its own Warning-Type
+    if (cbHeader_->bEtwsMessage && cbHeader_->cbEtwsType == ETWS_PRIMARY) {
+        type = cbHeader_->warningType;
+        return true;
+    }
+    // refer to 3GPP TS 23.041 9.4.1.2.2: the ETWS message identifiers 4352-4359 give the warning type
+    if ((cbHeader_->msgId & ETWS_TYPE_MASK) == ETWS_TYPE) {
+        type = static_cast<uint16_t>(cbHeader_->msgId - ETWS_TYPE);
+    } else {
+        type = ETWS_WARNING_TYPE_UNKNOWN;
+    }
     return true;
 }
 
@@ -569,22 +580,38 @@ bool GsmCbCodec::IsCmasMessage(bool &cmas) const
 bool GsmCbCodec::IsEtwsEmergencyUserAlert(bool &alert) const
 {
     uint16_t serial = 0;
-    if (!GetSerialNum(serial)) {
+    if (cbHeader_ == nullptr || !GetSerialNum(serial)) {
         TELEPHONY_LOGE("Get serial num fail.");
         return false;
     }
-    alert = ((serial & EMERGENCY_USER_ALERT) != 0);
+    // refer to 3GPP TS 23.041 9.3.24: an ETWS primary notification carries the flag in its Warning-Type
+    if (cbHeader_->bEtwsMessage && cbHeader_->cbEtwsType == ETWS_PRIMARY) {
+        alert = cbHeader_->bEtwsEmergencyUserAlert;
+        return true;
+    }
+    // refer to 3GPP TS 23.041 9.4.1.2.1: other ETWS messages carry the flag in the serial number
+    bool etws = false;
+    IsEtwsMessage(etws);
+    alert = etws && ((serial & EMERGENCY_USER_ALERT) != 0);
     return true;
 }
 
 bool GsmCbCodec::IsEtwsPopupAlert(bool &alert) const
 {
     uint16_t serial = 0;
-    if (!GetSerialNum(serial)) {
+    if (cbHeader_ == nullptr || !GetSerialNum(serial)) {
         TELEPHONY_LOGE("Get serial num fail.");
         return false;
     }
-    alert = ((serial & ETWS_POPUP) != 0);
+    // refer to 3GPP TS 23.041 9.3.24: an ETWS primary notification carries the flag in its Warning-Type
+    if (cbHeader_->bEtwsMessage && cbHeader_->cbEtwsType == ETWS_PRIMARY) {
+        alert = cbHeader_->bEtwsPopup;
+        return true;
+    }
+    // refer to 3GPP TS 23.041 9.4.1.2.1: other ETWS messages carry the flag in the serial number
+    bool etws = false;
+    IsEtwsMessage(etws);
+    alert = etws && ((serial & ETWS_POPUP) != 0);
     return true;
 }
 
