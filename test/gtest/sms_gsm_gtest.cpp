@@ -350,6 +350,75 @@ HWTEST_F(SmsGsmTest, GsmUserDataDecode_001, Function | MediumTest | Level1)
 }
 
 /**
+ * @tc.number   Telephony_SmsMmsGtest_GsmUserDataDecode_002
+ * @tc.name     GsmUserDataDecode_002
+ * @tc.desc     8bit TP-UD with UDH: body starts right after UDH (3GPP TS 23.040 9.2.3.24)
+ */
+HWTEST_F(SmsGsmTest, GsmUserDataDecode_002, Function | MediumTest | Level1)
+{
+    auto udPdu = std::make_shared<GsmUserDataPdu>();
+    // UDL=11, UDHL=6, IEI=05 IEDL=04 dest port 2948 origin port 9200, body "ABCD"
+    std::vector<uint8_t> ud = { 0x0B, 0x06, 0x05, 0x04, 0x0B, 0x84, 0x23, 0xF0, 'A', 'B', 'C', 'D' };
+    SmsReadBuffer buffer(std::string(ud.begin(), ud.end()));
+    SmsUDPackage userData;
+    SmsTpud tpud;
+    ASSERT_TRUE(udPdu->DecodeUserDataPdu(buffer, true, DATA_CODING_8BIT, &userData, &tpud));
+    EXPECT_EQ(userData.headerCnt, 1);
+    EXPECT_EQ(userData.header[0].udhType, UDH_APP_PORT_16BIT);
+    EXPECT_EQ(userData.header[0].udh.appPort16bit.destPort, 2948);
+    ASSERT_EQ(userData.length, 4);
+    EXPECT_EQ(std::string(userData.data, userData.length), "ABCD");
+    ASSERT_EQ(tpud.udl, 4);
+    EXPECT_EQ(std::string(tpud.ud, tpud.udl), "ABCD");
+    EXPECT_EQ(buffer.GetIndex(), ud.size());
+
+    SmsReadBuffer buffer1(std::string(ud.begin(), ud.end()));
+    ASSERT_TRUE(udPdu->DecodeUserDataPdu(buffer1, true, DATA_CODING_8BIT, &userData));
+    ASSERT_EQ(userData.length, 4);
+    EXPECT_EQ(std::string(userData.data, userData.length), "ABCD");
+
+    // one octet body after 8bit concat IE
+    std::vector<uint8_t> ud2 = { 0x07, 0x05, 0x00, 0x03, 0x2A, 0x02, 0x01, 'Z' };
+    SmsReadBuffer buffer2(std::string(ud2.begin(), ud2.end()));
+    ASSERT_TRUE(udPdu->DecodeUserDataPdu(buffer2, true, DATA_CODING_8BIT, &userData));
+    ASSERT_EQ(userData.length, 1);
+    EXPECT_EQ(userData.data[0], 'Z');
+
+    // empty body: UDL == UDHL + 1
+    std::vector<uint8_t> ud3 = { 0x06, 0x05, 0x00, 0x03, 0x2A, 0x02, 0x01 };
+    SmsReadBuffer buffer3(std::string(ud3.begin(), ud3.end()));
+    EXPECT_TRUE(udPdu->DecodeUserDataPdu(buffer3, true, DATA_CODING_8BIT, &userData));
+    EXPECT_EQ(userData.length, 0);
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_GsmUserDataDecode_003
+ * @tc.name     GsmUserDataDecode_003
+ * @tc.desc     8bit TP-UD with UDH: max UDL 140 keeps the whole body, UDHL beyond the PDU fails
+ */
+HWTEST_F(SmsGsmTest, GsmUserDataDecode_003, Function | MediumTest | Level1)
+{
+    auto udPdu = std::make_shared<GsmUserDataPdu>();
+    const uint8_t maxUdl = 140;
+    const uint8_t udhLen = 6;
+    std::vector<uint8_t> ud = { maxUdl, 0x05, 0x00, 0x03, 0x01, 0x02, 0x01 };
+    for (uint8_t i = 0; i < maxUdl - udhLen; i++) {
+        ud.push_back(i);
+    }
+    SmsReadBuffer buffer(std::string(ud.begin(), ud.end()));
+    SmsUDPackage userData;
+    ASSERT_TRUE(udPdu->DecodeUserDataPdu(buffer, true, DATA_CODING_8BIT, &userData));
+    ASSERT_EQ(userData.length, maxUdl - udhLen);
+    EXPECT_EQ(static_cast<uint8_t>(userData.data[0]), 0);
+    EXPECT_EQ(static_cast<uint8_t>(userData.data[maxUdl - udhLen - 1]), maxUdl - udhLen - 1);
+
+    // UDHL=10 but only 7 octets follow it
+    std::vector<uint8_t> ud2 = { 0x0B, 0x0A, 0x05, 0x04, 0x0B, 0x84, 0x23, 0xF0, 'A' };
+    SmsReadBuffer buffer2(std::string(ud2.begin(), ud2.end()));
+    EXPECT_FALSE(udPdu->DecodeUserDataPdu(buffer2, true, DATA_CODING_8BIT, &userData));
+}
+
+/**
  * @tc.number   Telephony_SmsMmsGtest_GsmUserDataEncode_001
  * @tc.name     GsmUserDataEncode_001
  * @tc.desc     Function test encode
