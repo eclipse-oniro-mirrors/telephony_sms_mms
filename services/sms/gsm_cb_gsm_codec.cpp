@@ -131,17 +131,17 @@ bool GsmCbGsmCodec::Decode2gHeaderEtws()
         TELEPHONY_LOGE("get data error.");
         return false;
     }
+    // refer to 3GPP TS 23.041 9.3.24 Warning-Type: 7 bit warning type value, Emergency User Alert bit, Popup bit
     cbHeader_->warningType = (oneByte & HEX_VALUE_FE) >> 1;
-    if (cbHeader_->msgId >= GSM_ETWS_BASE_MASK) {
-        cbCodec_->GetWarningType(cbHeader_->warningType);
-    }
+    cbHeader_->bEtwsEmergencyUserAlert = (oneByte & HEX_VALUE_01) != 0;
     if (!cbPduBuffer_->GetOneByte(oneByte)) {
         TELEPHONY_LOGE("get data error.");
         return false;
     }
     cbHeader_->totalPages = 1;
-    bool activatePopup = (oneByte & HEX_VALUE_80) != 0;
-    TELEPHONY_LOGI("activatePopup:%{public}d.", activatePopup);
+    cbHeader_->bEtwsPopup = (oneByte & HEX_VALUE_80) != 0;
+    TELEPHONY_LOGI("warningType:%{public}d, emergencyUserAlert:%{public}d, popup:%{public}d.",
+        cbHeader_->warningType, cbHeader_->bEtwsEmergencyUserAlert, cbHeader_->bEtwsPopup);
     return true;
 }
 
