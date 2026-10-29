@@ -29,6 +29,7 @@
 namespace OHOS {
 namespace Telephony {
 using namespace std;
+static constexpr const char *CT_SMSC = "10659401";
 GsmSmsSender::GsmSmsSender(int32_t slotId, function<void(std::shared_ptr<SmsSendIndexer>)> sendRetryFun)
     : SmsSender(slotId, sendRetryFun)
 {}
@@ -163,7 +164,9 @@ void GsmSmsSender::DataBasedSmsDelivery(const std::string &desAddr, const std::s
     std::string dataStr;
     CharArrayToString(data, dataLen, dataStr);
     gsmSmsMessage.SetSmsCodingNationalType(GetSmsCodingNationalType(slotId_));
-    gsmSmsMessage.SplitMessage(cellsInfos, dataStr, CheckForce7BitEncodeType(), codingType, true, desAddr);
+    // the GSM user data encoder sends no user data header to CT_SMSC, so no octets are reserved for the port IE
+    bool bPortNum = (desAddr != CT_SMSC);
+    gsmSmsMessage.SplitMessage(cellsInfos, dataStr, CheckForce7BitEncodeType(), codingType, bPortNum, desAddr);
     uint8_t msgRef8bit = GetMsgRef8Bit();
     TELEPHONY_LOGI("gsm data msgRef8bit = %{public}d", msgRef8bit);
     std::shared_ptr<struct SmsTpdu> tpdu = gsmSmsMessage.CreateDataSubmitSmsTpdu(
