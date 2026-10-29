@@ -40,7 +40,6 @@ static constexpr uint8_t GSM_BEAR_DATA_LEN = 140;
 static constexpr uint8_t CHARSET_7BIT_BITS = 7;
 static constexpr uint8_t GSM7_ESCAPE_CHAR = 0x1B;
 static constexpr int32_t GSM7_ESCAPE_SEQ_LEN = 2;
-static constexpr uint16_t TAPI_TEXT_SIZE_MAX = 520;
 const std::string CT_SMSC = "10659401";
 
 string SmsBaseMessage::GetSmscAddr() const
