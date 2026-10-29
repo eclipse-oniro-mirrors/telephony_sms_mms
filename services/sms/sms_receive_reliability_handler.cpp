@@ -76,6 +76,17 @@ SmsReceiveReliabilityHandler::SmsReceiveReliabilityHandler(int32_t slotId) : slo
 
 SmsReceiveReliabilityHandler::~SmsReceiveReliabilityHandler() {}
 
+/*
+ * 3GPP TS 23.040 9.2.3.24.1 / 9.2.3.24.8: the reference number is allocated by each sender, so segments belong to
+ * the same concatenated message only when sender, reference number and maximum number of segments are all equal,
+ * the same key as SmsReceiveHandler::CombineMultiPageMessage uses.
+ */
+static bool IsSameConcatGroup(const SmsReceiveIndexer &first, const SmsReceiveIndexer &other)
+{
+    return (first.GetMsgRefId() == other.GetMsgRefId()) && (first.GetMsgCount() == other.GetMsgCount()) &&
+        (first.GetOriginatingAddress() == other.GetOriginatingAddress());
+}
+
 bool SmsReceiveReliabilityHandler::DeleteExpireSmsFromDB()
 {
     DataShare::DataSharePredicates predicates;
@@ -191,7 +202,7 @@ void SmsReceiveReliabilityHandler::GetWapPushUserDataMultipage(int32_t &smsPages
     userDataRaws->at(dbIndexers[place].GetMsgSeqId() - PDU_POS_OFFSET) = baseMessage->GetRawUserData();
 
     for (auto locate = dbIndexers.begin() + place + SMS_PAGE_INCREMENT; locate != dbIndexers.end();) {
-        if (dbIndexers[place].GetMsgRefId() != locate->GetMsgRefId()) {
+        if (!IsSameConcatGroup(dbIndexers[place], *locate)) {
             locate++;
             continue;
         }
@@ -283,7 +294,7 @@ void SmsReceiveReliabilityHandler::GetSmsUserDataMultipage(int32_t &smsPagesCoun
     pdus->at(dbIndexers[position].GetMsgSeqId() - PDU_POS_OFFSET) =
         StringUtils::StringToHex(dbIndexers[position].GetPdu());
     for (auto locate = dbIndexers.begin() + position + SMS_PAGE_INCREMENT; locate != dbIndexers.end();) {
-        if (dbIndexers[position].GetMsgRefId() != locate->GetMsgRefId()) {
+        if (!IsSameConcatGroup(dbIndexers[position], *locate)) {
             locate++;
             continue;
         }
@@ -322,7 +333,9 @@ void SmsReceiveReliabilityHandler::DeleteMessageFormDb(const uint16_t refId, con
         ->And()
         ->EqualTo(SmsSubsection::SMS_SUBSECTION_ID, std::to_string(refId))
         ->And()
-        ->EqualTo(SmsSubsection::SIZE, std::to_string(msgCount));
+        ->EqualTo(SmsSubsection::SIZE, std::to_string(msgCount))
+        ->And()
+        ->EqualTo(SmsSubsection::SLOT_ID, std::to_string(slotId_));
     bool ret = DelayedSingleton<SmsPersistHelper>::GetInstance()->Delete(predicates);
     TELEPHONY_LOGI("DeleteMessageFormDb refId=%{public}d,dataBaseId=%{public}d,msgCount=%{public}d,result: %{public}d",
         refId, dataBaseId, msgCount, ret);
