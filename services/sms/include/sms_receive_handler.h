@@ -58,6 +58,7 @@ protected:
     void CombineMessagePart(const std::shared_ptr<SmsReceiveIndexer> &smsIndexer);
     bool IsRepeatedMessagePart(const std::shared_ptr<SmsReceiveIndexer> &smsIndexer);
     bool AddMsgToDB(const std::shared_ptr<SmsReceiveIndexer> indexer);
+    std::shared_ptr<SmsConcat> GetValidConcatMsg(const std::shared_ptr<SmsBaseMessage> &smsBaseMessage);
 
 private:
     SmsReceiveHandler(const SmsReceiveHandler &) = delete;
