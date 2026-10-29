@@ -32,6 +32,26 @@ namespace Telephony {
 using namespace std;
 static constexpr int16_t INVALID_SMS_PORT = 0x157b;
 
+namespace {
+/*
+ * Messages that HandleSmsByType / HandleNormalSmsByType acknowledge but never store or show: a special message
+ * (e.g. Type 0, 3GPP TS 23.040 9.2.3.9) and a message to INVALID_SMS_PORT. A copy queued before DataShare was
+ * ready is dropped in the same way.
+ */
+bool IsAckedAndDropped(GsmSmsMessage &message)
+{
+    if (message.IsSpecialMessage()) {
+        TELEPHONY_LOGI("GsmSmsReceiveHandler:: IsSpecialMessage");
+        return true;
+    }
+    if (static_cast<int16_t>(message.GetDestPort()) == INVALID_SMS_PORT) {
+        TELEPHONY_LOGI("[invalid sms port]");
+        return true;
+    }
+    return false;
+}
+} // namespace
+
 GsmSmsReceiveHandler::GsmSmsReceiveHandler(int32_t slotId) : SmsReceiveHandler(slotId) {}
 
 GsmSmsReceiveHandler::~GsmSmsReceiveHandler()
@@ -165,6 +185,9 @@ void GsmSmsReceiveHandler::HandleRemainDataShare(const std::shared_ptr<SmsBaseMe
         return;
     }
     GsmSmsMessage *message = (GsmSmsMessage *)smsBaseMessage.get();
+    if (IsAckedAndDropped(*message)) {
+        return;
+    }
     auto reliabilityHandler = std::make_shared<SmsReceiveReliabilityHandler>(slotId_);
     if (reliabilityHandler != nullptr) {
         if (!reliabilityHandler->DeleteExpireSmsFromDB()) {
@@ -172,16 +195,12 @@ void GsmSmsReceiveHandler::HandleRemainDataShare(const std::shared_ptr<SmsBaseMe
         }
     }
     shared_ptr<SmsReceiveIndexer> indexer;
-    if (!message->IsConcatMsg()) {
+    std::shared_ptr<SmsConcat> smsConcat = GetValidConcatMsg(smsBaseMessage);
+    if (smsConcat == nullptr) {
         indexer = make_shared<SmsReceiveIndexer>(message->GetRawPdu(), message->GetScTimestamp(),
             message->GetDestPort(), !message->GetGsm(), false, message->GetOriginatingAddress(),
             message->GetVisibleOriginatingAddress(), message->GetVisibleMessageBody());
     } else {
-        std::shared_ptr<SmsConcat> smsConcat = message->GetConcatMsg();
-        if (smsConcat == nullptr) {
-            TELEPHONY_LOGE("Concat is null.");
-            return;
-        }
         indexer = make_shared<SmsReceiveIndexer>(message->GetRawPdu(), message->GetScTimestamp(),
             message->GetDestPort(), !message->GetGsm(), message->GetOriginatingAddress(),
             message->GetVisibleOriginatingAddress(), smsConcat->msgRef, smsConcat->seqNum, smsConcat->totalSeg,
@@ -194,15 +213,11 @@ void GsmSmsReceiveHandler::HandleRemainDataShare(const std::shared_ptr<SmsBaseMe
     indexer->SetRawWapPushUserData(message->GetRawWapPushUserData());
     HILOG_COMM_INFO("received a gsm sms, the refid is %{public}d, this is %{public}d, a total of %{public}d",
         indexer->GetMsgRefId(), indexer->GetMsgSeqId(), indexer->GetMsgCount());
-    if (indexer->GetIsText() && message->IsConcatMsg() && IsRepeatedMessagePart(indexer)) {
+    if (indexer->GetIsText() && (smsConcat != nullptr) && IsRepeatedMessagePart(indexer)) {
         TELEPHONY_LOGE("Ack repeated error.");
         SmsHiSysEvent::WriteSmsReceiveFaultEvent(slotId_, SmsMmsMessageType::SMS_SHORT_MESSAGE,
             SmsMmsErrorCode::SMS_ERROR_REPEATED_ERROR, "gsm message repeated error");
         return;
-    }
-    auto destPort = indexer->GetDestPort();
-    if (destPort == INVALID_SMS_PORT) {
-        TELEPHONY_LOGI("[invalid sms port]");
     }
     if (!AddMsgToDB(indexer)) {
         return;
@@ -238,16 +253,12 @@ int32_t GsmSmsReceiveHandler::HandleNormalSmsByType(const shared_ptr<SmsBaseMess
     GsmSmsMessage *message = (GsmSmsMessage *)smsBaseMessage.get();
 
     shared_ptr<SmsReceiveIndexer> indexer;
-    if (!message->IsConcatMsg()) {
+    std::shared_ptr<SmsConcat> smsConcat = GetValidConcatMsg(smsBaseMessage);
+    if (smsConcat == nullptr) {
         indexer = make_shared<SmsReceiveIndexer>(message->GetRawPdu(), message->GetScTimestamp(),
             message->GetDestPort(), !message->GetGsm(), false, message->GetOriginatingAddress(),
             message->GetVisibleOriginatingAddress(), message->GetVisibleMessageBody());
     } else {
-        std::shared_ptr<SmsConcat> smsConcat = message->GetConcatMsg();
-        if (smsConcat == nullptr) {
-            TELEPHONY_LOGE("Concat is null.");
-            return AckIncomeCause::SMS_ACK_UNKNOWN_ERROR;
-        }
         indexer = make_shared<SmsReceiveIndexer>(message->GetRawPdu(), message->GetScTimestamp(),
             message->GetDestPort(), !message->GetGsm(), message->GetOriginatingAddress(),
             message->GetVisibleOriginatingAddress(), smsConcat->msgRef, smsConcat->seqNum, smsConcat->totalSeg,
@@ -262,7 +273,7 @@ int32_t GsmSmsReceiveHandler::HandleNormalSmsByType(const shared_ptr<SmsBaseMess
 
     HILOG_COMM_INFO("received a gsm sms, the refid is %{public}d, this is %{public}d, a total of %{public}d",
         indexer->GetMsgRefId(), indexer->GetMsgSeqId(), indexer->GetMsgCount());
-    if (indexer->GetIsText() && message->IsConcatMsg() && IsRepeatedMessagePart(indexer)) {
+    if (indexer->GetIsText() && (smsConcat != nullptr) && IsRepeatedMessagePart(indexer)) {
         TELEPHONY_LOGE("Ack repeated error.");
         SmsHiSysEvent::WriteSmsReceiveFaultEvent(slotId_, SmsMmsMessageType::SMS_SHORT_MESSAGE,
             SmsMmsErrorCode::SMS_ERROR_REPEATED_ERROR, "gsm message repeated error");
