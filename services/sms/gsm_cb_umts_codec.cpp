@@ -187,6 +187,29 @@ bool GsmCbUmtsCodec::Decode3gCbMsg()
     return decodeResult;
 }
 
+/**
+ * refer to 3GPP TS 23.041 9.4.2.2.5 CB Data and 3GPP TS 23.038 6.1.2.1.1 Packing of 7-bit characters
+ * CBS-Message-Information-Length is a number of octets, octetLen octets carry octetLen * 8 / 7 characters
+ */
+static uint16_t UnpackCbsPage7bit(const uint8_t *src, uint16_t octetLen, uint8_t *dst, uint16_t dstLen)
+{
+    uint16_t septetLen = octetLen * SMS_BYTE_BIT / GSM_CODE_BIT;
+    if (src == nullptr || dst == nullptr || septetLen > dstLen) {
+        return 0;
+    }
+    for (uint16_t i = 0; i < septetLen; i++) {
+        uint16_t bitPos = i * GSM_CODE_BIT;
+        uint16_t byteIdx = bitPos / SMS_BYTE_BIT;
+        uint8_t bitOffset = bitPos % SMS_BYTE_BIT;
+        uint16_t value = src[byteIdx] >> bitOffset;
+        if (bitOffset > SMS_BYTE_BIT - GSM_CODE_BIT) {
+            value |= static_cast<uint16_t>(src[byteIdx + 1]) << (SMS_BYTE_BIT - bitOffset);
+        }
+        dst[i] = static_cast<uint8_t>(value & 0x7F);
+    }
+    return septetLen;
+}
+
 bool GsmCbUmtsCodec::Decode3g7Bit()
 {
     if (cbPduBuffer_ == nullptr || cbCodec_ == nullptr || cbPduBuffer_->GetSize() == 0) {
@@ -220,8 +243,8 @@ bool GsmCbUmtsCodec::Decode3g7Bit()
         }
         uint16_t unpackLen = 0;
         uint8_t pageData[MAX_PAGE_PDU_LEN * SMS_BYTE_BIT / GSM_CODE_BIT] = { 0 };
-        unpackLen = SmsCommonUtils::Unpack7bitChar(
-            &tpdu[offset], dataLen, 0x00, pageData, MAX_PAGE_PDU_LEN * SMS_BYTE_BIT / GSM_CODE_BIT);
+        unpackLen = UnpackCbsPage7bit(
+            &tpdu[offset], dataLen, pageData, MAX_PAGE_PDU_LEN * SMS_BYTE_BIT / GSM_CODE_BIT);
         for (uint16_t position = 0; position < unpackLen; position++) {
             messageRaw_.push_back(pageData[position]);
         }
