@@ -151,6 +151,8 @@ private:
     virtual int DecodeMessage(uint8_t *decodeData, unsigned int length, DataCodingScheme &codingType,
         const std::string &msgText, bool &bAbnormal, MSG_LANGUAGE_ID_T &langId) = 0;
     void ConvertSpiltToUtf8(SplitInfo &split, const DataCodingScheme &codingType);
+    void SplitMessageBySize(std::vector<struct SplitInfo> &splitResult, const uint8_t *decodeData, int32_t encodeLen,
+        int32_t segSize, const struct SplitInfo &segInfo);
     int32_t FindNextUnicodePosition(int32_t index, int32_t segSizeHalf, icu::BreakIterator *fullDataIter,
         const icu::UnicodeString &fullData);
 };
