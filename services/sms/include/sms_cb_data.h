@@ -40,7 +40,9 @@ public:
         uint8_t severity = static_cast<uint8_t>(SmsCmaeSeverity::RESERVED);
         uint8_t urgency = static_cast<uint8_t>(SmsCmaeUrgency::IMMEDIATE);
         uint8_t certainty = static_cast<uint8_t>(SmsCmaeCertainty::RESERVED);
-        uint16_t warnType = 0;
+        int32_t warnType = 0;
+        bool isEtwsEmergencyUserAlert = false;
+        bool isEtwsPopupAlert = false;
         uint8_t msgType = GsmCbCodec::GSM_UNKNOWN;
         uint8_t langType = GsmCbCodec::CB_LANG_DUMMY;
         uint8_t dcs = 0;
@@ -74,6 +76,10 @@ public:
     inline static const std::string CID = "cid";
     inline static const std::string WARNING_TYPE = "warningType";
     inline static const std::string GEO_SCOPE = "geoScope";
+    inline static const std::string IS_ETWS_EMERGENCY_USER_ALERT = "isEtwsEmergencyUserAlert";
+    inline static const std::string IS_ETWS_POPUP_ALERT = "isEtwsPopupAlert";
+    /** value of WARNING_TYPE for a message that carries no ETWS warning type */
+    static constexpr int32_t INVALID_WARNING_TYPE = -1;
 };
 } // namespace Telephony
 } // namespace OHOS
