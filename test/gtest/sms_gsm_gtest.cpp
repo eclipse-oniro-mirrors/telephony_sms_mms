@@ -444,6 +444,114 @@ HWTEST_F(SmsGsmTest, GsmUserDataEncode_001, Function | MediumTest | Level1)
 }
 
 /**
+ * @tc.number   Telephony_SmsMmsGtest_GsmUserDataEncode_002
+ * @tc.name     GsmUserDataEncode_002
+ * @tc.desc     TP-UDL upper bound: 160 septets / 140 octets including UDHL and UDH (3GPP TS 23.040 9.2.3.16)
+ */
+HWTEST_F(SmsGsmTest, GsmUserDataEncode_002, Function | MediumTest | Level1)
+{
+    auto udPdu = std::make_shared<GsmUserDataPdu>();
+    std::string destAddr = "123";
+    SmsUDPackage userData = {};
+    const struct SmsUDPackage *pUserData = &userData;
+    userData.headerCnt = 1;
+    userData.header[0].udhType = UDH_CONCAT_8BIT;
+    userData.header[0].udh.concat8bit.msgRef = 1;
+    userData.header[0].udh.concat8bit.totalSeg = 2;
+    userData.header[0].udh.concat8bit.seqNum = 1;
+    // UDH = UDHL + 5 octets concat IE = 6 octets = 7 septets
+    userData.length = 153;
+    SmsWriteBuffer buffer1;
+    EXPECT_TRUE(udPdu->EncodeUserDataPdu(buffer1, pUserData, DATA_CODING_7BIT, destAddr));
+    userData.length = 154;
+    SmsWriteBuffer buffer2;
+    EXPECT_FALSE(udPdu->EncodeUserDataPdu(buffer2, pUserData, DATA_CODING_7BIT, destAddr));
+    userData.length = 134;
+    SmsWriteBuffer buffer3;
+    EXPECT_TRUE(udPdu->EncodeUserDataPdu(buffer3, pUserData, DATA_CODING_8BIT, destAddr));
+    SmsWriteBuffer buffer4;
+    EXPECT_TRUE(udPdu->EncodeUserDataPdu(buffer4, pUserData, DATA_CODING_UCS2, destAddr));
+    userData.length = 135;
+    SmsWriteBuffer buffer5;
+    EXPECT_FALSE(udPdu->EncodeUserDataPdu(buffer5, pUserData, DATA_CODING_8BIT, destAddr));
+    userData.length = 136;
+    SmsWriteBuffer buffer6;
+    EXPECT_FALSE(udPdu->EncodeUserDataPdu(buffer6, pUserData, DATA_CODING_UCS2, destAddr));
+
+    userData.headerCnt = 0;
+    userData.length = 140;
+    SmsWriteBuffer buffer7;
+    EXPECT_TRUE(udPdu->EncodeUserDataPdu(buffer7, pUserData, DATA_CODING_8BIT, destAddr));
+    userData.length = 141;
+    SmsWriteBuffer buffer8;
+    EXPECT_FALSE(udPdu->EncodeUserDataPdu(buffer8, pUserData, DATA_CODING_8BIT, destAddr));
+    userData.length = 160;
+    SmsWriteBuffer buffer9;
+    EXPECT_TRUE(udPdu->EncodeUserDataPdu(buffer9, pUserData, DATA_CODING_7BIT, destAddr));
+    userData.length = 161;
+    SmsWriteBuffer buffer10;
+    EXPECT_FALSE(udPdu->EncodeUserDataPdu(buffer10, pUserData, DATA_CODING_7BIT, destAddr));
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_GsmSmsMessageGetSegmentSize_001
+ * @tc.name     GsmSmsMessageGetSegmentSize_001
+ * @tc.desc     Segment size leaves room for UDHL and every IE added by the senders (3GPP TS 23.040 9.2.3.24)
+ */
+HWTEST_F(SmsGsmTest, GsmSmsMessageGetSegmentSize_001, Function | MediumTest | Level1)
+{
+    GsmSmsMessage message;
+    MSG_LANGUAGE_ID_T noLang = MSG_ID_RESERVED_LANG;
+    MSG_LANGUAGE_ID_T turkish = MSG_ID_TURKISH_LANG;
+    DataCodingScheme coding = DATA_CODING_7BIT;
+    EXPECT_EQ(message.GetSegmentSize(coding, 160, false, noLang), 160);
+    EXPECT_EQ(message.GetSegmentSize(coding, 161, false, noLang), 153);
+    EXPECT_EQ(message.GetSegmentSize(coding, 155, false, turkish), 155);
+    EXPECT_EQ(message.GetSegmentSize(coding, 156, false, turkish), 149);
+    EXPECT_EQ(message.GetSegmentSize(coding, 152, true, noLang), 152);
+    EXPECT_EQ(message.GetSegmentSize(coding, 153, true, noLang), 146);
+    coding = DATA_CODING_8BIT;
+    EXPECT_EQ(message.GetSegmentSize(coding, 140, false, noLang), 140);
+    EXPECT_EQ(message.GetSegmentSize(coding, 141, false, noLang), 134);
+    EXPECT_EQ(message.GetSegmentSize(coding, 133, true, noLang), 133);
+    EXPECT_EQ(message.GetSegmentSize(coding, 134, true, noLang), 128);
+    coding = DATA_CODING_UCS2;
+    EXPECT_EQ(message.GetSegmentSize(coding, 140, false, noLang), 140);
+    EXPECT_EQ(message.GetSegmentSize(coding, 142, false, noLang), 134);
+    EXPECT_EQ(message.GetSegmentSize(coding, 132, true, noLang), 132);
+    EXPECT_EQ(message.GetSegmentSize(coding, 134, true, noLang), 128);
+    EXPECT_EQ(message.GetSegmentSize(coding, 140, false, turkish), 140);
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_GsmSmsMessageSplit_001
+ * @tc.name     GsmSmsMessageSplit_001
+ * @tc.desc     Split with national language single shift / port IE keeps every segment within TP-UD limits
+ */
+HWTEST_F(SmsGsmTest, GsmSmsMessageSplit_001, Function | MediumTest | Level1)
+{
+    GsmSmsMessage message;
+    message.SetSmsCodingNationalType(SMS_CODING_NATIONAL_TYPE_TURKISH);
+    std::vector<struct SplitInfo> splits;
+    DataCodingScheme coding = DATA_CODING_AUTO;
+    std::string desAddr;
+    message.SplitMessage(splits, std::string(300, 'a'), false, coding, false, desAddr);
+    EXPECT_EQ(coding, DATA_CODING_7BIT);
+    ASSERT_EQ(splits.size(), 3u);
+    EXPECT_EQ(splits[0].encodeData.size(), 149u);
+    EXPECT_EQ(splits[1].encodeData.size(), 149u);
+    EXPECT_EQ(splits[2].encodeData.size(), 2u);
+
+    splits.clear();
+    message.SplitMessage(splits, std::string(155, 'a'), false, coding, false, desAddr);
+    ASSERT_EQ(splits.size(), 1u);
+    splits.clear();
+    message.SplitMessage(splits, std::string(156, 'a'), false, coding, false, desAddr);
+    ASSERT_EQ(splits.size(), 2u);
+    EXPECT_EQ(splits[0].encodeData.size(), 149u);
+}
+
+/**
  * @tc.number   Telephony_SmsMmsGtest_GsmSmsSender_001
  * @tc.name     GsmSmsSender_001
  * @tc.desc     Function test GsmSmsSender
