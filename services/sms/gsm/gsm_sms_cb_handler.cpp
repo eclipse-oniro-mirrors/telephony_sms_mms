@@ -375,7 +375,15 @@ void GsmSmsCbHandler::GetCbData(const std::shared_ptr<GsmCbCodec> &cbMessage, Sm
     cbMessage->GetCmasUrgency(sendData.urgency);
     cbMessage->GetCmasCertainty(sendData.certainty);
     cbMessage->IsEtwsMessage(sendData.isEtws);
-    cbMessage->GetWarningType(sendData.warnType);
+    uint16_t warningType = GsmCbCodec::ETWS_WARNING_TYPE_UNKNOWN;
+    cbMessage->GetWarningType(warningType);
+    // a message that carries no ETWS warning type is reported with an invalid warning type
+    sendData.warnType = SmsCbData::INVALID_WARNING_TYPE;
+    if (warningType != GsmCbCodec::ETWS_WARNING_TYPE_UNKNOWN) {
+        sendData.warnType = static_cast<int32_t>(warningType);
+    }
+    cbMessage->IsEtwsEmergencyUserAlert(sendData.isEtwsEmergencyUserAlert);
+    cbMessage->IsEtwsPopupAlert(sendData.isEtwsPopupAlert);
     cbMessage->IsCmasMessage(sendData.isCmas);
     cbMessage->GetSerialNum(sendData.serial);
     cbMessage->GetReceiveTime(sendData.recvTime);
@@ -410,6 +418,8 @@ void GsmSmsCbHandler::PackageWantData(SmsCbData::CbData &sendData, EventFwk::Wan
     want.SetParam(SmsCbData::DCS, static_cast<char>(sendData.dcs));
     want.SetParam(SmsCbData::IS_ETWS_PRIMARY, sendData.isPrimary);
     want.SetParam(SmsCbData::IS_ETWS_MESSAGE, sendData.isEtws);
+    want.SetParam(SmsCbData::IS_ETWS_EMERGENCY_USER_ALERT, sendData.isEtwsEmergencyUserAlert);
+    want.SetParam(SmsCbData::IS_ETWS_POPUP_ALERT, sendData.isEtwsPopupAlert);
     want.SetParam(SmsCbData::PLMN, StringUtils::ToUtf8(plmn_));
     want.SetParam(SmsCbData::LAC, static_cast<int>(lac_));
     want.SetParam(SmsCbData::CID, static_cast<int>(cid_));
