@@ -108,25 +108,10 @@ bool GsmUserDataDecode::DecodeGsmHeadPduPartData(
             TELEPHONY_LOGE("get data error.");
             return false;
         }
-        userData->headerCnt = 0;
-        uint8_t current = buffer.GetIndex();
-        for (int i = 0; buffer.GetIndex() < current + udhl && i < MAX_UD_HEADER_NUM; i++) {
-            uint16_t headerLen = 0;
-            if (!userData_->DecodeHeader(buffer, userData->header[i], headerLen)) {
-                TELEPHONY_LOGE("DecodeHeader error");
-                return false;
-            }
-            if (headerLen == 0) {
-                userData_->ResetUserData(*userData);
-                TELEPHONY_LOGE("headerLen error");
-                return false;
-            }
-            if (buffer.GetIndex() > buffer.GetSize()) {
-                TELEPHONY_LOGE("data buffer error)");
-                userData_->ResetUserData(*userData);
-                return false;
-            }
-            userData->headerCnt++;
+        if (!userData_->DecodeHeaderList(buffer, buffer.GetIndex(), udhl, *userData)) {
+            TELEPHONY_LOGE("DecodeHeaderList error");
+            userData_->ResetUserData(*userData);
+            return false;
         }
     } else {
         userData->headerCnt = 0;
@@ -222,13 +207,11 @@ bool GsmUserDataDecode::Decode8bitPduPartData(SmsReadBuffer &buffer, bool bHeade
             TELEPHONY_LOGE("get data error.");
             return false;
         }
-        userData->headerCnt = 0;
         current = buffer.GetIndex();
-        for (uint8_t i = 0; (buffer.GetIndex() - current) < udhl && i < MAX_UD_HEADER_NUM; i++) {
-            if (!userData_->GetHeaderCnt(buffer, userData, udhl, i)) {
-                TELEPHONY_LOGI("data error");
-                return false;
-            }
+        if (!userData_->DecodeHeaderList(buffer, current, udhl, *userData)) {
+            TELEPHONY_LOGI("data error");
+            userData_->ResetUserData(*userData);
+            return false;
         }
     } else {
         userData->headerCnt = 0;
@@ -316,18 +299,11 @@ bool GsmUserDataDecode::DecodeUcs2PduPartData(
             TELEPHONY_LOGE("get data error.");
             return false;
         }
-        for (uint8_t i = 0; buffer.GetIndex() < udhl + current && i < MAX_UD_HEADER_NUM; i++) {
-            uint16_t headerLen;
-            if (!userData_->DecodeHeader(buffer, userData->header[i], headerLen)) {
-                TELEPHONY_LOGE("DecodeHeader error");
-                return false;
-            }
-            if (headerLen == 0 || buffer.GetIndex() > (current + udhl + SLIDE_DATA_STEP)) {
-                TELEPHONY_LOGI("data error");
-                userData_->ResetUserData(*userData);
-                return false;
-            }
-            userData->headerCnt++;
+        /* current is the index of UDL, the UDH starts after the UDL and UDHL octets */
+        if (!userData_->DecodeHeaderList(buffer, static_cast<uint16_t>(current + SLIDE_DATA_STEP), udhl, *userData)) {
+            TELEPHONY_LOGI("data error");
+            userData_->ResetUserData(*userData);
+            return false;
         }
     }
 
