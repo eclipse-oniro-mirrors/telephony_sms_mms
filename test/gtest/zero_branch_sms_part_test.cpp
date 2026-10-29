@@ -2181,7 +2181,6 @@ HWTEST_F(BranchSmsPartTest, SmsBroadcastSubscriberReceiver_0001, Function | Medi
     EXPECT_FALSE(wapPushHandler.SendWapPushMessageBroadcast(nullptr));
 }
 
-
 namespace {
 bool IsConcatIeAccepted(uint8_t totalSeg, uint8_t seqNum)
 {
