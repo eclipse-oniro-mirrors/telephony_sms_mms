@@ -38,6 +38,8 @@ static constexpr uint8_t BYTE_BITS = 8;
 static constexpr uint8_t MAX_ADD_PARAM_LEN = 12;
 static constexpr uint8_t GSM_BEAR_DATA_LEN = 140;
 static constexpr uint8_t CHARSET_7BIT_BITS = 7;
+static constexpr uint8_t GSM7_ESCAPE_CHAR = 0x1B;
+static constexpr int32_t GSM7_ESCAPE_SEQ_LEN = 2;
 static constexpr uint16_t TAPI_TEXT_SIZE_MAX = 520;
 const std::string CT_SMSC = "10659401";
 
@@ -382,7 +384,9 @@ void SmsBaseMessage::ConvertSpiltToUtf8(SplitInfo &split, const DataCodingScheme
             MsgLangInfo langInfo = {
                 0,
             };
-            langInfo.bSingleShift = false;
+            // the segment is sent with a national language single shift IE when langId is set
+            langInfo.bSingleShift = (split.langId != MSG_ID_RESERVED_LANG);
+            langInfo.singleLang = split.langId;
             langInfo.bLockingShift = false;
             dataSize = TextCoder::Instance().Gsm7bitToUtf8(
                 buff, MAX_MSG_TEXT_LEN, split.encodeData.data(), split.encodeData.size(), langInfo);
@@ -475,6 +479,48 @@ void SmsBaseMessage::SplitMessageUcs2(std::vector<struct SplitInfo> &splitResult
     splitResult.push_back(splitInfo);
 }
 
+/*
+ * 3GPP TS 23.038 6.2.1.1: ESC (0x1B) and the following septet are one character, and each segment of a
+ * concatenated message is decoded on its own (TS 23.040 9.2.3.24.1), so a 7bit segment must not end
+ * between an escape character and its extension code.
+ */
+static int32_t GetGsm7bitSegmentLen(const uint8_t *data, int32_t start, int32_t total, int32_t segLen)
+{
+    int32_t end = start + segLen;
+    if (end >= total) {
+        return segLen;
+    }
+    int32_t pos = start;
+    while (pos < end) {
+        pos += (data[pos] == GSM7_ESCAPE_CHAR) ? GSM7_ESCAPE_SEQ_LEN : 1;
+    }
+    if (pos > end && segLen > 1) {
+        return segLen - 1;
+    }
+    return segLen;
+}
+
+/*
+ * Cut encodeLen octets of decodeData into segments of at most segSize octets. Every segment takes the coding and
+ * language of segInfo, and a 7bit segment never ends between ESC and its extension code.
+ */
+void SmsBaseMessage::SplitMessageBySize(std::vector<struct SplitInfo> &splitResult, const uint8_t *decodeData,
+    int32_t encodeLen, int32_t segSize, const struct SplitInfo &segInfo)
+{
+    int32_t index = 0;
+    while (segSize > 0 && index < encodeLen) {
+        int32_t userDataLen = (encodeLen - index > segSize) ? segSize : (encodeLen - index);
+        if (segInfo.encodeType == DATA_CODING_7BIT) {
+            userDataLen = GetGsm7bitSegmentLen(decodeData, index, encodeLen, userDataLen);
+        }
+        struct SplitInfo splitInfo = segInfo;
+        splitInfo.encodeData = std::vector<uint8_t>(&decodeData[index], &decodeData[index] + userDataLen);
+        ConvertSpiltToUtf8(splitInfo, segInfo.encodeType);
+        splitResult.push_back(splitInfo);
+        index += userDataLen;
+    }
+}
+
 void SmsBaseMessage::SplitMessage(std::vector<struct SplitInfo> &splitResult, const std::string &text,
     bool force7BitCode, DataCodingScheme &codingType, bool bPortNum, const std::string &desAddr)
 {
@@ -518,24 +564,10 @@ void SmsBaseMessage::SplitMessage(std::vector<struct SplitInfo> &splitResult, co
     if (codingType == DATA_CODING_UCS2 && segCount > 1) {
         SplitMessageUcs2(splitResult, decodeData, encodeLen, segSize, codingType);
     } else {
-        int32_t index = 0;
-        for (int i = 0; i < segCount; i++) {
-            int userDataLen = 0;
-            struct SplitInfo splitInfo;
-            splitInfo.langId = langId;
-            splitInfo.encodeType = codingType;
-            uint8_t textData[TAPI_TEXT_SIZE_MAX + 1];
-            (void)memset_s(textData, sizeof(textData), 0x00, sizeof(textData));
-            if ((i + 1) == segCount) {
-                userDataLen = encodeLen - (i * segSize);
-            } else {
-                userDataLen = segSize;
-            }
-            splitInfo.encodeData = std::vector<uint8_t>(&decodeData[index], &decodeData[index] + userDataLen);
-            ConvertSpiltToUtf8(splitInfo, codingType);
-            splitResult.push_back(splitInfo);
-            index += segSize;
-        }
+        struct SplitInfo segInfo;
+        segInfo.langId = langId;
+        segInfo.encodeType = codingType;
+        SplitMessageBySize(splitResult, decodeData, encodeLen, segSize, segInfo);
     }
 }
 
