@@ -1161,7 +1161,7 @@ HWTEST_F(BranchSmsTest, GsmSmsParamCodec_0013, Function | MediumTest | Level1) {
 HWTEST_F(BranchSmsTest, GsmSmsUDataCodec_0001, Function | MediumTest | Level1)
 {
     auto udPdu = std::make_shared<GsmUserDataPdu>();
-    SmsUDPackage smsUserData;
+    SmsUDPackage smsUserData = {};
     SmsTpud *pTPUD = new SmsTpud();
     const struct SmsUDPackage *pUserData = &(smsUserData);
     auto encodeBuffer = std::make_shared<SmsWriteBuffer>();
