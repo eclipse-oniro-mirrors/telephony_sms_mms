@@ -72,8 +72,8 @@ private:
     void CreateDefaultSubmit(bool bStatusReport, const DataCodingScheme codingScheme);
     int SetSmsTpduDestAddress(std::shared_ptr<struct SmsTpdu> &tPdu, const std::string &desAddr);
     uint8_t CalcReplyEncodeAddress(const std::string &replyAddress);
-    virtual int DecodeMessage(uint8_t *decodeData, unsigned int length, DataCodingScheme &codingType,
-        const std::string &msgText, bool &bAbnormal, MSG_LANGUAGE_ID_T &langId);
+    int DecodeMessage(uint8_t *decodeData, unsigned int length, DataCodingScheme &codingType,
+        const std::string &msgText, bool &bAbnormal, MSG_LANGUAGE_ID_T &langId) override;
     bool PduAnalysisMsg();
     void ConvertUserPartData();
     MsgLangInfo GetNationalLangInfo() const;
