@@ -1341,7 +1341,7 @@ HWTEST_F(BranchCbTest, CbLanguageCode_0001, Function | MediumTest | Level1)
 
 /**
  * @tc.number   Telephony_SmsMmsGtest_CbLanguageCode_0002
- * @tc.name     Test GetLanguageCode for Group 0 with all GSM 7bit languages
+ * @tc.name     Test GetLanguageCode for Group 0 with all GSM 7bit languages (part 1)
  * @tc.desc     Function test
  */
 HWTEST_F(BranchCbTest, CbLanguageCode_0002, Function | MediumTest | Level1)
@@ -1389,6 +1389,53 @@ HWTEST_F(BranchCbTest, CbLanguageCode_0002, Function | MediumTest | Level1)
     cbCodec->cbHeader_->dcs.langType = 0x07;
     EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
     EXPECT_EQ(langCode, "da");
+}
+
+/**
+ * @tc.number   Telephony_SmsMmsGtest_CbLanguageCode_0007
+ * @tc.name     Test GetLanguageCode for Group 0 with GSM 7bit languages (part 2)
+ * @tc.desc     Function test
+ */
+HWTEST_F(BranchCbTest, CbLanguageCode_0007, Function | MediumTest | Level1)
+{
+    auto cbCodec = std::make_shared<GsmCbCodec>();
+    cbCodec->cbHeader_ = std::make_shared<GsmCbCodec::GsmCbMessageHeader>();
+    std::string langCode;
+
+    cbCodec->cbHeader_->dcs.rawData = 0x08;
+    cbCodec->cbHeader_->dcs.langType = 0x08;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "pt");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x09;
+    cbCodec->cbHeader_->dcs.langType = 0x09;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "fi");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x0A;
+    cbCodec->cbHeader_->dcs.langType = 0x0A;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "no");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x0B;
+    cbCodec->cbHeader_->dcs.langType = 0x0B;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "el");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x0C;
+    cbCodec->cbHeader_->dcs.langType = 0x0C;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "tr");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x0D;
+    cbCodec->cbHeader_->dcs.langType = 0x0D;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "hu");
+
+    cbCodec->cbHeader_->dcs.rawData = 0x0E;
+    cbCodec->cbHeader_->dcs.langType = 0x0E;
+    EXPECT_TRUE(cbCodec->GetLanguageCode(langCode));
+    EXPECT_EQ(langCode, "pl");
 
     cbCodec->cbHeader_->dcs.rawData = 0x0F;
     cbCodec->cbHeader_->dcs.langType = 0x0F;
