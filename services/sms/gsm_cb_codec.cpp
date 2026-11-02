@@ -802,9 +802,9 @@ bool GsmCbCodec::GetLanguageCode(std::string &languageCode) const
     }
     const auto &langMap = GetGsm7BitLangMap();
     switch (codingGroup) {
-        case 0x00:
-        case 0x02:
-        case 0x03: {
+        case SMS_CBMSG_DCS_CODGRP_GSM7_LANG:
+        case SMS_CBMSG_DCS_CODGRP_GSM7_LANG2:
+        case SMS_CBMSG_DCS_CODGRP_GSM7_LANG3: {
             uint8_t langIdx = cbHeader_->dcs.langType & HEX_VALUE_0F;
             auto it = langMap.find(langIdx);
             if (it != langMap.end()) {
@@ -812,7 +812,7 @@ bool GsmCbCodec::GetLanguageCode(std::string &languageCode) const
             }
             break;
         }
-        case 0x01: {
+        case SMS_CBMSG_DCS_CODGRP_ISO639: {
             // ISO 639 language code stored in iso639Lang[0..1] as GSM 7 bit chars
             uint8_t ch0 = cbHeader_->dcs.iso639Lang[0];
             uint8_t ch1 = cbHeader_->dcs.iso639Lang[1];
@@ -828,11 +828,6 @@ bool GsmCbCodec::GetLanguageCode(std::string &languageCode) const
             languageCode = std::string(1, static_cast<char>(ch0)) + static_cast<char>(ch1);
             break;
         }
-        case 0x04:
-        case 0x05:
-        case 0x06:
-        case 0x07:
-            break;
         default:
             break;
     }
