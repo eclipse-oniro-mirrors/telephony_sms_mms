@@ -366,7 +366,9 @@ void GsmSmsCbHandler::GetCbData(const std::shared_ptr<GsmCbCodec> &cbMessage, Sm
     cbMessage->GetLanguageCode(sendData.languageCode);
     uint8_t codingGroup = 0;
     if (cbMessage->GetCodingGroup(codingGroup)) {
-        if (codingGroup == 0x00 || codingGroup == 0x02 || codingGroup == 0x03) {
+        if (codingGroup == SmsCbCodec::SMS_CBMSG_DCS_CODGRP_GSM7_LANG ||
+            codingGroup == SmsCbCodec::SMS_CBMSG_DCS_CODGRP_GSM7_LANG2 ||
+            codingGroup == SmsCbCodec::SMS_CBMSG_DCS_CODGRP_GSM7_LANG3) {
             sendData.langType &= 0x0F;
         } else {
             sendData.langType = GsmCbCodec::CB_MSG_UNSPECIFIED;
