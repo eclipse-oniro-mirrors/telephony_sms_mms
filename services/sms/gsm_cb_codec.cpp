@@ -755,5 +755,83 @@ bool GsmCbCodec::GetReceiveTime(int64_t &receiveTime) const
     }
     return true;
 }
+
+const std::unordered_map<uint8_t, std::string> &GsmCbCodec::GetGsm7BitLangMap()
+{
+    static const std::unordered_map<uint8_t, std::string> langMap = {
+        { CB_LANG_GERMAN, "de" },
+        { CB_LANG_ENGLISH, "en" },
+        { CB_LANG_ITALIAN, "it" },
+        { CB_LANG_FRENCH, "fr" },
+        { CB_LANG_SPANISH, "es" },
+        { CB_LANG_DUTCH, "nl" },
+        { CB_LANG_SWEDISH, "sv" },
+        { CB_LANG_DANISH, "da" },
+        { CB_LANG_PORTUGUESE, "pt" },
+        { CB_LANG_FINNISH, "fi" },
+        { CB_LANG_NORWEGIAN, "no" },
+        { CB_LANG_GREEK, "el" },
+        { CB_LANG_TURKISH, "tr" },
+        { CB_LANG_HUNGARIAN, "hu" },
+        { CB_LANG_POLISH, "pl" },
+        { CB_MSG_UNSPECIFIED, "" },
+    };
+    return langMap;
+}
+
+bool GsmCbCodec::GetCodingGroup(uint8_t &codingGroup) const
+{
+    if (cbHeader_ == nullptr) {
+        TELEPHONY_LOGE("cbHeader_ is nullptr");
+        return false;
+    }
+    codingGroup = (cbHeader_->dcs.rawData & HEX_VALUE_F0) >> HEX_VALUE_04;
+    return true;
+}
+
+bool GsmCbCodec::GetLanguageCode(std::string &languageCode) const
+{
+    languageCode = "";
+    if (cbHeader_ == nullptr) {
+        TELEPHONY_LOGE("cbHeader_ is nullptr");
+        return false;
+    }
+    uint8_t codingGroup = 0;
+    if (!GetCodingGroup(codingGroup)) {
+        return false;
+    }
+    const auto &langMap = GetGsm7BitLangMap();
+    switch (codingGroup) {
+        case SMS_CBMSG_DCS_CODGRP_GSM7_LANG:
+        case SMS_CBMSG_DCS_CODGRP_GSM7_LANG2:
+        case SMS_CBMSG_DCS_CODGRP_GSM7_LANG3: {
+            uint8_t langIdx = cbHeader_->dcs.langType & HEX_VALUE_0F;
+            auto it = langMap.find(langIdx);
+            if (it != langMap.end()) {
+                languageCode = it->second;
+            }
+            break;
+        }
+        case SMS_CBMSG_DCS_CODGRP_ISO639: {
+            // ISO 639 language code stored in iso639Lang[0..1] as GSM 7 bit chars
+            uint8_t ch0 = cbHeader_->dcs.iso639Lang[0];
+            uint8_t ch1 = cbHeader_->dcs.iso639Lang[1];
+            if (ch0 == 0 && ch1 == 0) {
+                break;
+            }
+            if (ch0 >= 'A' && ch0 <= 'Z') {
+                ch0 += 0x20;
+            }
+            if (ch1 >= 'A' && ch1 <= 'Z') {
+                ch1 += 0x20;
+            }
+            languageCode = std::string(1, static_cast<char>(ch0)) + static_cast<char>(ch1);
+            break;
+        }
+        default:
+            break;
+    }
+    return true;
+}
 } // namespace Telephony
 } // namespace OHOS

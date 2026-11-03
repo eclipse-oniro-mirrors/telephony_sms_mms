@@ -48,6 +48,7 @@ public:
         bool isPrimary = false;
         uint8_t cmasRes = static_cast<uint8_t>(SmsCmaeResponseType::RESERVED);
         uint8_t geoScope = 0;
+        std::string languageCode = "";
     };
     inline static const std::string SLOT_ID = "slotId";
     inline static const std::string CB_MSG_TYPE = "cbMsgType";
@@ -74,6 +75,7 @@ public:
     inline static const std::string CID = "cid";
     inline static const std::string WARNING_TYPE = "warningType";
     inline static const std::string GEO_SCOPE = "geoScope";
+    inline static const std::string LANGUAGE_CODE = "languageCode";
 };
 } // namespace Telephony
 } // namespace OHOS

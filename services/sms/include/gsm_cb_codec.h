@@ -18,6 +18,7 @@
 
 #include <ctime>
 #include <string>
+#include <unordered_map>
 
 #include "gsm_cb_pdu_decode_buffer.h"
 
@@ -167,6 +168,17 @@ public:
         SMS_CBMSG_CODGRP_CLASS_CODING, /** 1111 Cell Broadcast */
     };
 
+    /**
+     * from 3GPP TS 23.038 V4.3.0 (2001-09) 5 section
+     * CBS Data Coding Scheme Coding Group (bits 7..4)
+     */
+    enum SmsCbDcsCodingGroup : uint8_t {
+        SMS_CBMSG_DCS_CODGRP_GSM7_LANG = 0x00, /** 0000 Language using GSM 7 bit default alphabet */
+        SMS_CBMSG_DCS_CODGRP_ISO639 = 0x01, /** 0001 ISO 639 language code in next 2 octets */
+        SMS_CBMSG_DCS_CODGRP_GSM7_LANG2 = 0x02, /** 0010 Language using GSM 7 bit default alphabet */
+        SMS_CBMSG_DCS_CODGRP_GSM7_LANG3 = 0x03, /** 0011 Language using GSM 7 bit default alphabet */
+    };
+
     enum GsmCbLangType : unsigned short {
         LANG_UNKNOWN = 0x00,
         LANG_ENGLISH = 0x01,
@@ -253,6 +265,8 @@ public:
     bool GetMsgType(uint8_t &msgType) const;
     bool GetLangType(uint8_t &lan) const;
     bool GetDcs(uint8_t &dcs) const;
+    bool GetLanguageCode(std::string &languageCode) const;
+    bool GetCodingGroup(uint8_t &codingGroup) const;
     bool GetReceiveTime(int64_t &receiveTime) const;
     int64_t GetRecvTime() const;
     void GetPduData(std::vector<uint8_t> &dataPdu);
@@ -268,6 +282,7 @@ public:
     std::string ToString() const;
 
 private:
+    static const std::unordered_map<uint8_t, std::string> &GetGsm7BitLangMap();
     bool PduAnalysis(const std::vector<uint8_t> &pdu);
     void DecodeIos639Dcs(const uint8_t dcsData, const unsigned short iosData, GsmCbMsgDcs &dcs) const;
     void DecodeGeneralDcs(const uint8_t dcsData, GsmCbMsgDcs &dcs) const;
