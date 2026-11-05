@@ -322,7 +322,9 @@ void SmsReceiveReliabilityHandler::DeleteMessageFormDb(const uint16_t refId, con
         ->And()
         ->EqualTo(SmsSubsection::SMS_SUBSECTION_ID, std::to_string(refId))
         ->And()
-        ->EqualTo(SmsSubsection::SIZE, std::to_string(msgCount));
+        ->EqualTo(SmsSubsection::SIZE, std::to_string(msgCount))
+        ->And()
+        ->EqualTo(SmsSubsection::SLOT_ID, std::to_string(slotId_));
     bool ret = DelayedSingleton<SmsPersistHelper>::GetInstance()->Delete(predicates);
     TELEPHONY_LOGI("DeleteMessageFormDb refId=%{public}d,dataBaseId=%{public}d,msgCount=%{public}d,result: %{public}d",
         refId, dataBaseId, msgCount, ret);
