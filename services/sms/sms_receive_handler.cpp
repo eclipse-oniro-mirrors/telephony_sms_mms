@@ -331,7 +331,9 @@ bool SmsReceiveHandler::CombineMultiPageMessage(const std::shared_ptr<SmsReceive
         ->And()
         ->EqualTo(SmsSubsection::SMS_SUBSECTION_ID, std::to_string(indexer->GetMsgRefId()))
         ->And()
-        ->EqualTo(SmsSubsection::SIZE, std::to_string(indexer->GetMsgCount()));
+        ->EqualTo(SmsSubsection::SIZE, std::to_string(indexer->GetMsgCount()))
+        ->And()
+        ->EqualTo(SmsSubsection::SLOT_ID, std::to_string(slotId_));
     DelayedSingleton<SmsPersistHelper>::GetInstance()->Query(predicates, dbIndexers);
     int8_t count = 0;
     for (const auto &v : dbIndexers) {
@@ -401,7 +403,9 @@ bool SmsReceiveHandler::IsRepeatedMessagePart(const shared_ptr<SmsReceiveIndexer
             ->And()
             ->EqualTo(SmsSubsection::SMS_SUBSECTION_ID, std::to_string(smsIndexer->GetMsgRefId()))
             ->And()
-            ->EqualTo(SmsSubsection::SIZE, std::to_string(smsIndexer->GetMsgCount()));
+            ->EqualTo(SmsSubsection::SIZE, std::to_string(smsIndexer->GetMsgCount()))
+            ->And()
+            ->EqualTo(SmsSubsection::SLOT_ID, std::to_string(slotId_));
         DelayedSingleton<SmsPersistHelper>::GetInstance()->Query(predicates, dbIndexers);
 
         for (const auto &it : dbIndexers) {
