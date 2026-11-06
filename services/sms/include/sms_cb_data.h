@@ -50,6 +50,7 @@ public:
         bool isPrimary = false;
         uint8_t cmasRes = static_cast<uint8_t>(SmsCmaeResponseType::RESERVED);
         uint8_t geoScope = 0;
+        std::string languageCode = "";
     };
     inline static const std::string SLOT_ID = "slotId";
     inline static const std::string CB_MSG_TYPE = "cbMsgType";
@@ -80,6 +81,7 @@ public:
     inline static const std::string IS_ETWS_POPUP_ALERT = "isEtwsPopupAlert";
     /** value of WARNING_TYPE for a message that carries no ETWS warning type */
     static constexpr int32_t INVALID_WARNING_TYPE = -1;
+    inline static const std::string LANGUAGE_CODE = "languageCode";
 };
 } // namespace Telephony
 } // namespace OHOS
