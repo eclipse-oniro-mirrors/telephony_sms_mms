@@ -28,7 +28,7 @@ ohos_fuzztest("SmsPduBufferFuzzTest") {
     "$SMS_MMS_SOURCE_DIR/test/fuzztest/common_fuzzer",
   ]
 
-  deps = [ "$SMS_MMS_SOURCE_DIR:tel_sms_mms" ]
+  deps = [ "$SMS_MMS_SOURCE_DIR/test:tel_sms_mms_test_base" ]
 
   external_deps = [
     "access_token:libaccesstoken_sdk",

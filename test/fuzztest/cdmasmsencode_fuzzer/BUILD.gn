@@ -32,7 +32,7 @@ ohos_fuzztest("CdmaSmsEncodeFuzzTest") {
   ]
 
   deps = [
-    "$SMS_MMS_SOURCE_DIR:tel_sms_mms",
+    "$SMS_MMS_SOURCE_DIR/test:tel_sms_mms_test_base",
     "$SMS_MMS_SOURCE_DIR/frameworks/native:tel_sms_mms_api",
   ]
 

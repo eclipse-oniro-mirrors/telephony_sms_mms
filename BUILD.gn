@@ -40,6 +40,7 @@ ohos_shared_library("tel_sms_mms") {
     debug = false
   }
   branch_protector_ret = "pac_ret"
+  version_script = "tel_sms_mms.versionscript"
   sources = [
     "frameworks/native/sms/src/short_message.cpp",
     "services/sms/cdma/cdma_sms_message.cpp",
