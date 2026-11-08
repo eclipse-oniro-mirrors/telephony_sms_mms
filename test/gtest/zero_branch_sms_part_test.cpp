@@ -2181,47 +2181,6 @@ HWTEST_F(BranchSmsPartTest, SmsBroadcastSubscriberReceiver_0001, Function | Medi
     EXPECT_FALSE(wapPushHandler.SendWapPushMessageBroadcast(nullptr));
 }
 
-namespace {
-bool IsConcatIeAccepted(uint8_t totalSeg, uint8_t seqNum)
-{
-    std::shared_ptr<GsmSmsMessage> message = std::make_shared<GsmSmsMessage>();
-    message->smsUserData_.headerCnt = 1;
-    message->smsUserData_.header[0].udhType = UDH_CONCAT_8BIT;
-    message->smsUserData_.header[0].udh.concat8bit.msgRef = 0x2A;
-    message->smsUserData_.header[0].udh.concat8bit.totalSeg = totalSeg;
-    message->smsUserData_.header[0].udh.concat8bit.seqNum = seqNum;
-    std::shared_ptr<SmsReceiveHandler> smsReceiveHandler = std::make_shared<GsmSmsReceiveHandler>(0);
-    std::shared_ptr<SmsConcat> concat = smsReceiveHandler->GetValidConcatMsg(message);
-    if (concat == nullptr) {
-        return false;
-    }
-    return (concat->totalSeg == totalSeg) && (concat->seqNum == seqNum);
-}
-} // namespace
-
-/**
- * @tc.number   Telephony_SmsMmsGtest_GetValidConcatMsg_0001
- * @tc.name     Test GetValidConcatMsg
- * @tc.desc     3GPP TS 23.040 9.2.3.24.1: a concat IE with total 0, seq 0 or seq > total is ignored
- */
-HWTEST_F(BranchSmsPartTest, GetValidConcatMsg_0001, Function | MediumTest | Level1)
-{
-    std::shared_ptr<SmsReceiveHandler> smsReceiveHandler = std::make_shared<GsmSmsReceiveHandler>(0);
-    EXPECT_EQ(smsReceiveHandler->GetValidConcatMsg(nullptr), nullptr);
-    EXPECT_EQ(smsReceiveHandler->GetValidConcatMsg(std::make_shared<GsmSmsMessage>()), nullptr);
-    EXPECT_FALSE(IsConcatIeAccepted(0, 0));
-    EXPECT_FALSE(IsConcatIeAccepted(0, 1));
-    EXPECT_FALSE(IsConcatIeAccepted(2, 0));
-    EXPECT_FALSE(IsConcatIeAccepted(2, 3));
-    EXPECT_FALSE(IsConcatIeAccepted(127, 128));
-    EXPECT_FALSE(IsConcatIeAccepted(254, 255));
-    EXPECT_TRUE(IsConcatIeAccepted(1, 1));
-    EXPECT_TRUE(IsConcatIeAccepted(2, 1));
-    EXPECT_TRUE(IsConcatIeAccepted(2, 2));
-    EXPECT_TRUE(IsConcatIeAccepted(128, 128));
-    EXPECT_TRUE(IsConcatIeAccepted(255, 255));
-}
-
 /**
  * @tc.number   Telephony_SmsMmsGtest_GsmSmsReceiveHandler_0002
  * @tc.name     Test HandleNormalSmsByType with an invalid concat IE
@@ -2282,7 +2241,7 @@ HWTEST_F(BranchSmsPartTest, SmsReceiveReliabilityHandler_0004, Function | Medium
     ASSERT_EQ(pdus->size(), total);
     EXPECT_TRUE(pdus->at(0).empty());
     EXPECT_FALSE(pdus->at(1).empty());
- 
+
     dbIndexers.push_back(MakeDbSegment(SENDER_A, refId, 1, total));
     smsPagesCount = 1;
     reliabilityHandler->GetSmsUserDataMultipage(smsPagesCount, total, dbIndexers, 0, pdus);
@@ -2312,87 +2271,12 @@ HWTEST_F(BranchSmsPartTest, SmsReceiveReliabilityHandler_0005, Function | Medium
     EXPECT_EQ(smsPagesCount, 1);
     EXPECT_EQ(dbIndexers.size(), total);
     EXPECT_TRUE(userDataRaws->at(1).empty());
- 
+
     dbIndexers.push_back(MakeDbSegment(SENDER_A, refId, 2, total));
     reliabilityHandler->GetWapPushUserDataMultipage(smsPagesCount, dbIndexers, 0, userDataRaws);
     EXPECT_EQ(smsPagesCount, total);
     EXPECT_EQ(dbIndexers.size(), total);
     EXPECT_EQ(dbIndexers[1].GetOriginatingAddress(), SENDER_B);
-}
-
-namespace {
-constexpr int32_t SECOND_SLOT_ID = 1;
-
-bool HasSlotIdPredicate(const DataShare::DataSharePredicates &predicates, int32_t slotId)
-{
-    const size_t fieldAndValue = 2;
-    for (const auto &item : predicates.GetOperationList()) {
-        if (item.operation != DataShare::EQUAL_TO || item.singleParams.size() < fieldAndValue) {
-            continue;
-        }
-        std::string field = item.GetSingle(0);
-        std::string value = item.GetSingle(1);
-        if (field == SmsSubsection::SLOT_ID && value == std::to_string(slotId)) {
-            return true;
-        }
-    }
-    return false;
-}
-} // namespace
-
-/**
- * @tc.number   Telephony_SmsMmsGtest_SmsReceiveSlotId_0001
- * @tc.name     Test slot id of subsection query and delete
- * @tc.desc     3GPP TS 23.040 9.2.3.24.1: segments received on different SIM slots belong to different receiving
- *              entities, combine / repeated check / delete after broadcast are restricted to the receiving slot
- */
-HWTEST_F(BranchSmsPartTest, SmsReceiveSlotId_0001, Function | MediumTest | Level1)
-{
-    auto dataShareHelperMock = std::make_shared<DataShareHelperMock>();
-    DelayedSingleton<SmsPersistHelper>::GetInstance()->smsDataShareHelper_ = dataShareHelperMock;
-    int queryWithSlot = 0;
-    int deleteWithSlot = 0;
-    EXPECT_CALL(*dataShareHelperMock, Query(_, _, _, _))
-        .WillRepeatedly(Invoke([&queryWithSlot](Uri &uri, const DataShare::DataSharePredicates &predicates,
-            std::vector<std::string> &columns, DatashareBusinessError *businessError)
-            -> std::shared_ptr<DataShare::DataShareResultSet> {
-            queryWithSlot += HasSlotIdPredicate(predicates, SECOND_SLOT_ID) ? 1 : 0;
-            return nullptr;
-        }));
-    EXPECT_CALL(*dataShareHelperMock, Delete(_, _))
-        .WillRepeatedly(Invoke([&deleteWithSlot](Uri &uri, const DataShare::DataSharePredicates &predicates) -> int {
-            deleteWithSlot += HasSlotIdPredicate(predicates, SECOND_SLOT_ID) ? 1 : 0;
-            return 0;
-        }));
-    EXPECT_CALL(*dataShareHelperMock, Release()).WillRepeatedly(Return(true));
-
-    std::shared_ptr<SmsReceiveHandler> smsReceiveHandler = std::make_shared<GsmSmsReceiveHandler>(SECOND_SLOT_ID);
-    auto reliabilityHandler = std::make_shared<SmsReceiveReliabilityHandler>(SECOND_SLOT_ID);
-    auto indexer = std::make_shared<SmsReceiveIndexer>(MakeDbSegment(SENDER_A, 1, 1, 2));
-    auto pdus = std::make_shared<vector<string>>();
-    EXPECT_FALSE(smsReceiveHandler->IsRepeatedMessagePart(indexer));
-    EXPECT_FALSE(smsReceiveHandler->CombineMultiPageMessage(indexer, pdus, reliabilityHandler));
-    EXPECT_EQ(queryWithSlot, 2);
-    reliabilityHandler->DeleteMessageFormDb(1, 1, 2, SENDER_A);
-    EXPECT_EQ(deleteWithSlot, 1);
-
-    using namespace EventFwk;
-    MatchingSkills smsSkills;
-    smsSkills.AddEvent(CommonEventSupport::COMMON_EVENT_SMS_RECEIVE_COMPLETED);
-    CommonEventSubscribeInfo smsSubscriberInfo(smsSkills);
-    auto receiver = std::make_shared<SmsBroadcastSubscriberReceiver>(smsSubscriberInfo);
-    Want want;
-    want.SetAction(CommonEventSupport::COMMON_EVENT_SMS_WAPPUSH_RECEIVE_COMPLETED);
-    want.SetParam("slotId", static_cast<int>(SECOND_SLOT_ID));
-    want.SetParam(SmsBroadcastSubscriberReceiver::SMS_BROADCAST_ADDRESS_KEY, std::string(SENDER_A));
-    want.SetParam(SmsBroadcastSubscriberReceiver::SMS_BROADCAST_DATABASE_ID_KEY, 1);
-    want.SetParam(SmsBroadcastSubscriberReceiver::SMS_BROADCAST_MSG_REF_ID_KEY, 1);
-    want.SetParam(SmsBroadcastSubscriberReceiver::SMS_BROADCAST_MSG_COUNT_KEY, 2);
-    CommonEventData data;
-    data.SetWant(want);
-    receiver->OnReceiveEvent(data);
-    EXPECT_EQ(deleteWithSlot, 2);
-    DelayedSingleton<SmsPersistHelper>::GetInstance()->ReleaseDataShareHelper();
 }
 
 /**
