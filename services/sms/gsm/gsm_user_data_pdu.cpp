@@ -27,6 +27,24 @@ namespace Telephony {
 using namespace std;
 static constexpr uint8_t NORMAL_BYTE_BITS = 8;
 static constexpr uint8_t SLIDE_DATA_STEP = 2;
+static constexpr uint8_t IE_HEAD_LEN = 2;
+ 
+static bool IsSupportedHeader(uint8_t udhType)
+{
+    switch (udhType) {
+        case UDH_CONCAT_8BIT:
+        case UDH_CONCAT_16BIT:
+        case UDH_APP_PORT_8BIT:
+        case UDH_APP_PORT_16BIT:
+        case UDH_SPECIAL_SMS:
+        case UDH_ALTERNATE_REPLY_ADDRESS:
+        case UDH_SINGLE_SHIFT:
+        case UDH_LOCKING_SHIFT:
+            return true;
+        default:
+            return false;
+    }
+}
 
 bool GsmUserDataPdu::EncodeUserDataPdu(
     SmsWriteBuffer &buffer, const struct SmsUDPackage *(&userData), DataCodingScheme scheme, std::string &destAddr)
@@ -418,6 +436,51 @@ bool GsmUserDataPdu::DecodeHeader(SmsReadBuffer &buffer, struct SmsUDH &pHeader,
     }
 
     return true;
+}
+
+/*
+ * 3GPP TS 23.040 9.2.3.24: the UDH is UDHL octets of IEs (IEI, IEDL, IEDL octets of data) and the number of IEs
+ * is not limited. Every IE is delimited by its own IEDL: IEs that are not supported, or whose decoded length does
+ * not match the IEDL, are skipped instead of failing the whole message. Up to MAX_UD_HEADER_NUM supported IEs are
+ * kept, and the read index always ends at UDH start + UDHL where the short message body begins.
+ */
+bool GsmUserDataPdu::DecodeHeaderList(
+    SmsReadBuffer &buffer, uint16_t udhStart, uint8_t udhl, struct SmsUDPackage &userData)
+{
+    userData.headerCnt = 0;
+    uint16_t udhEnd = static_cast<uint16_t>(udhStart + udhl);
+    if (udhEnd > buffer.GetSize() || !buffer.SetIndex(udhStart)) {
+        TELEPHONY_LOGE("udhl exceeds buffer");
+        return false;
+    }
+    while (buffer.GetIndex() + IE_HEAD_LEN <= udhEnd) {
+        uint16_t ieStart = buffer.GetIndex();
+        uint8_t iedl = 0;
+        if (!buffer.PickOneByteFromIndex(static_cast<uint16_t>(ieStart + 1), iedl)) {
+            TELEPHONY_LOGE("get IEDL error");
+            return false;
+        }
+        uint16_t ieEnd = static_cast<uint16_t>(ieStart + IE_HEAD_LEN + iedl);
+        if (ieEnd > udhEnd) {
+            TELEPHONY_LOGE("IEDL exceeds UDH, ignore the rest of UDH");
+            break;
+        }
+        if (userData.headerCnt < MAX_UD_HEADER_NUM) {
+            struct SmsUDH &header = userData.header[userData.headerCnt];
+            uint16_t headerLen = 0;
+            if (DecodeHeader(buffer, header, headerLen) && buffer.GetIndex() == ieEnd &&
+                IsSupportedHeader(header.udhType)) {
+                userData.headerCnt++;
+            } else {
+                TELEPHONY_LOGI("skip IE [%{public}02x] IEDL [%{public}u]", header.udhType, iedl);
+            }
+        }
+        if (!buffer.SetIndex(ieEnd)) {
+            TELEPHONY_LOGE("set index error");
+            return false;
+        }
+    }
+    return buffer.SetIndex(udhEnd);
 }
 
 bool GsmUserDataPdu::DecodeHeaderPartData(SmsReadBuffer &buffer, struct SmsUDH &pHeader, uint8_t oneByte)

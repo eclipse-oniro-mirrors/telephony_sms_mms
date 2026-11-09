@@ -29,7 +29,22 @@ static constexpr uint8_t SLIDE_DATA_STEP = 2;
 static constexpr uint8_t MAX_TPDU_LEN = 255;
 static constexpr uint8_t HEX_07 = 0x07;
 static constexpr uint8_t HEX_08 = 0x08;
+static constexpr uint16_t MAX_7BIT_UDL = 160;
+static constexpr uint16_t MAX_OCTET_UDL = 140;
 const std::string CT_SMSC = "10659401";
+
+static uint16_t GetOctetUdl(uint16_t udhl, uint8_t bodyLen)
+{
+    return (udhl > 0) ? static_cast<uint16_t>(udhl + 1 + bodyLen) : bodyLen;
+}
+
+static uint16_t GetSeptetUdl(uint16_t udhl, uint8_t fillBits, uint8_t bodyLen)
+{
+    if (udhl == 0) {
+        return bodyLen;
+    }
+    return static_cast<uint16_t>((((udhl + 1) * HEX_08) + fillBits + (bodyLen * HEX_07)) / HEX_07);
+}
 
 GsmUserDataEncode::GsmUserDataEncode(std::shared_ptr<GsmUserDataPdu> data)
 {
@@ -79,22 +94,15 @@ bool GsmUserDataEncode::EncodeGsmHeadPdu(SmsWriteBuffer &buffer, const struct Sm
         fillBits = 0;
     }
 
-    /* Set UDL, UDHL */
-    if (udhl > 0) {
-        uint16_t value = ((udhl + 1) * HEX_08) + fillBits + (userData->length * HEX_07);
-        if (!buffer.InsertByte((value / HEX_07), location)) {
-            TELEPHONY_LOGE("write data error.");
-            return false;
-        }
-        if (!buffer.InsertByte(static_cast<uint8_t>(udhl), location + 1)) {
-            TELEPHONY_LOGE("write data error.");
-            return false;
-        }
-    } else {
-        if (!buffer.InsertByte(userData->length, location)) {
-            TELEPHONY_LOGE("write data error.");
-            return false;
-        }
+    /* Set UDL, UDHL; 3GPP TS 23.040 9.2.3.16: 7bit TP-UDL counts septets of UDHL, UDH, fill bits and body, max 160 */
+    uint16_t udl = GetSeptetUdl(udhl, fillBits, userData->length);
+    if (udl > MAX_7BIT_UDL || !buffer.InsertByte(static_cast<uint8_t>(udl), location)) {
+        TELEPHONY_LOGE("7bit udl over limit or write data error.");
+        return false;
+    }
+    if (udhl > 0 && !buffer.InsertByte(static_cast<uint8_t>(udhl), location + 1)) {
+        TELEPHONY_LOGE("write data error.");
+        return false;
     }
     return true;
 }
@@ -146,7 +154,11 @@ bool GsmUserDataEncode::Encode8bitHeadPdu(
     } else {
         udhl = 0;
     }
-    /* Set UDL, UDHL */
+    /* Set UDL, UDHL; 3GPP TS 23.040 9.2.3.16: 8bit TP-UDL counts octets of UDHL, UDH and body, max 140 */
+    if (GetOctetUdl(udhl, userData->length) > MAX_OCTET_UDL) {
+        TELEPHONY_LOGE("Encode8bitHeadPdu udl over limit.");
+        return false;
+    }
     if (udhl > 0) {
         if (!buffer.InsertByte(static_cast<uint8_t>(udhl + 1 + userData->length), location)) {
             TELEPHONY_LOGE("Encode8bitHeadPdu write data error.");
@@ -221,7 +233,11 @@ bool GsmUserDataEncode::EncodeUcs2HeadPdu(SmsWriteBuffer &buffer, const struct S
         udhl = 0;
     }
 
-    /* Set UDL, UDHL */
+    /* Set UDL, UDHL; 3GPP TS 23.040 9.2.3.16: UCS2 TP-UDL counts octets of UDHL, UDH and body, max 140 */
+    if (GetOctetUdl(udhl, userData->length) > MAX_OCTET_UDL) {
+        TELEPHONY_LOGE("EncodeUcs2HeadPdu udl over limit.");
+        return false;
+    }
     if (udhl > 0) {
         if (!buffer.InsertByte(static_cast<uint8_t>(udhl + 1 + userData->length), location)) {
             TELEPHONY_LOGE("EncodeUcs2HeadPdu write data error.");

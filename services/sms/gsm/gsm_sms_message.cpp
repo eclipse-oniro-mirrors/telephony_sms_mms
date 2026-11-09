@@ -32,6 +32,14 @@ static constexpr uint16_t MAX_TPDU_DATA_LEN = 255;
 static constexpr uint16_t TAPI_TEXT_SIZE_MAX = 520;
 static constexpr uint16_t ADDRESS_LEN = 4;
 static constexpr uint16_t MATCH_TWO = 2;
+static constexpr int MAX_TP_UD_OCTETS = 140;
+static constexpr int OCTET_BITS = 8;
+static constexpr int GSM_7BIT_BITS = 7;
+static constexpr int UCS2_CHAR_OCTETS = 2;
+static constexpr int UDHL_OCTETS = 1;
+static constexpr int CONCAT_8BIT_IE_OCTETS = 5;
+static constexpr int APP_PORT_16BIT_IE_OCTETS = 6;
+static constexpr int SINGLE_SHIFT_IE_OCTETS = 3;
 static std::string g_nameAddrEmailRegex = "\\s*(\"[^\"]*\"|[^<>\"]+)\\s*<([^<>]+)>\\s*";
 static std::string g_addrEmailRegex =
     "^([A-Za-z0-9_\\-\\.\u4e00-\u9fa5])+\\@([A-Za-z0-9_\\-\\.])+\\.([A-Za-z]{2,63})$";
@@ -579,6 +587,30 @@ void GsmSmsMessage::ConvertUserData()
     ConvertUserPartData();
 }
 
+/*
+ * 3GPP TS 23.040 9.2.3.24.15 / 9.2.3.24.16: the national language tables are selected by the single shift
+ * IE (0x24) and the locking shift IE (0x25) wherever they appear in the UDH; the last occurrence applies.
+ * Locking shift is only applied for the tables TextCoder implements, others fall back to the default alphabet.
+ */
+MsgLangInfo GsmSmsMessage::GetNationalLangInfo() const
+{
+    MsgLangInfo langInfo;
+    for (uint8_t i = 0; i < smsUserData_.headerCnt && i < MAX_UD_HEADER_NUM; i++) {
+        const struct SmsUDH &header = smsUserData_.header[i];
+        if (header.udhType == UDH_SINGLE_SHIFT) {
+            langInfo.bSingleShift = true;
+            langInfo.singleLang = header.udh.singleShift.langId;
+        } else if (header.udhType == UDH_LOCKING_SHIFT) {
+            bool supported = header.udh.lockingShift.langId == MSG_ID_TURKISH_LANG ||
+                header.udh.lockingShift.langId == MSG_ID_PORTUGUESE_LANG;
+            langInfo.bLockingShift = supported;
+            langInfo.lockingLang =
+                supported ? header.udh.lockingShift.langId : static_cast<MSG_LANGUAGE_ID_T>(MSG_ID_RESERVED_LANG);
+        }
+    }
+    return langInfo;
+}
+
 void GsmSmsMessage::ConvertUserPartData()
 {
     if (smsUserData_.length == 0) {
@@ -587,12 +619,7 @@ void GsmSmsMessage::ConvertUserPartData()
     }
     uint8_t buff[MAX_MSG_TEXT_LEN + 1] = { 0 };
     if (codingScheme_ == DATA_CODING_7BIT) {
-        MsgLangInfo langInfo;
-        auto langId = smsUserData_.header[0].udh.singleShift.langId;
-        if (langId != 0) {
-            langInfo.bSingleShift = true;
-            langInfo.singleLang = langId;
-        }
+        MsgLangInfo langInfo = GetNationalLangInfo();
         int dataSize = TextCoder::Instance().Gsm7bitToUtf8(
             buff, MAX_MSG_TEXT_LEN, reinterpret_cast<uint8_t *>(smsUserData_.data), smsUserData_.length, langInfo);
         visibleMessageBody_.insert(0, reinterpret_cast<char *>(buff), dataSize);
@@ -709,6 +736,44 @@ bool GsmSmsMessage::IsSpecialMessage() const
 void GsmSmsMessage::SetSmsCodingNationalType(SmsCodingNationalType smsCodingNationalType)
 {
     smsCodingNationalType_ = smsCodingNationalType;
+}
+
+/*
+ * 3GPP TS 23.040 9.2.3.16 / 9.2.3.24: TP-UD holds at most 140 octets (160 septets), UDHL and all
+ * information elements included; with 7bit coding the UDH occupies ceil((UDHL + 1) * 8 / 7) septets.
+ */
+static int GetUserDataCapacity(DataCodingScheme codingScheme, int ieOctets)
+{
+    int udhOctets = (ieOctets > 0) ? (UDHL_OCTETS + ieOctets) : 0;
+    switch (codingScheme) {
+        case DATA_CODING_7BIT:
+        case DATA_CODING_ASCII7BIT:
+            return ((MAX_TP_UD_OCTETS - udhOctets) * OCTET_BITS) / GSM_7BIT_BITS;
+        case DATA_CODING_8BIT:
+            return MAX_TP_UD_OCTETS - udhOctets;
+        case DATA_CODING_UCS2:
+            return ((MAX_TP_UD_OCTETS - udhOctets) / UCS2_CHAR_OCTETS) * UCS2_CHAR_OCTETS;
+        default:
+            return 0;
+    }
+}
+
+int GsmSmsMessage::GetSegmentSize(
+    DataCodingScheme &codingScheme, int dataLen, bool bPortNum, MSG_LANGUAGE_ID_T &langId) const
+{
+    // count the IEs the GSM senders add to every segment: 16bit port IE, national language single shift IE
+    int ieOctets = 0;
+    if (bPortNum) {
+        ieOctets += APP_PORT_16BIT_IE_OCTETS;
+    }
+    if (codingScheme == DATA_CODING_7BIT && langId != MSG_ID_RESERVED_LANG) {
+        ieOctets += SINGLE_SHIFT_IE_OCTETS;
+    }
+    if (dataLen <= GetUserDataCapacity(codingScheme, ieOctets)) {
+        return dataLen;
+    }
+    // more than one segment: every segment also carries the 8bit concatenation IE
+    return GetUserDataCapacity(codingScheme, ieOctets + CONCAT_8BIT_IE_OCTETS);
 }
 
 int GsmSmsMessage::DecodeMessage(uint8_t *decodeData, unsigned int len, DataCodingScheme &codingType,

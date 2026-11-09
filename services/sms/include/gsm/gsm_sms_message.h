@@ -62,6 +62,8 @@ public:
     void ConvertMsgTimeStamp(const struct SmsTimeStamp &times);
     bool IsSpecialMessage() const;
     void SetSmsCodingNationalType(SmsCodingNationalType smsCodingNationalType);
+    int GetSegmentSize(
+        DataCodingScheme &codingScheme, int dataLen, bool bPortNum, MSG_LANGUAGE_ID_T &langId) const override;
 
 private:
     void AnalysisMsgDeliver(const SmsDeliver &deliver);
@@ -70,10 +72,11 @@ private:
     void CreateDefaultSubmit(bool bStatusReport, const DataCodingScheme codingScheme);
     int SetSmsTpduDestAddress(std::shared_ptr<struct SmsTpdu> &tPdu, const std::string &desAddr);
     uint8_t CalcReplyEncodeAddress(const std::string &replyAddress);
-    virtual int DecodeMessage(uint8_t *decodeData, unsigned int length, DataCodingScheme &codingType,
-        const std::string &msgText, bool &bAbnormal, MSG_LANGUAGE_ID_T &langId);
+    int DecodeMessage(uint8_t *decodeData, unsigned int length, DataCodingScheme &codingType,
+        const std::string &msgText, bool &bAbnormal, MSG_LANGUAGE_ID_T &langId) override;
     bool PduAnalysisMsg();
     void ConvertUserPartData();
+    MsgLangInfo GetNationalLangInfo() const;
     void ParseEmailFromMessageBody();
     bool IsEmailAddress(std::string emailFrom);
 
