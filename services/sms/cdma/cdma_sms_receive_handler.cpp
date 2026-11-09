@@ -117,15 +117,12 @@ void CdmaSmsReceiveHandler::HandleRemainDataShare(const std::shared_ptr<SmsBaseM
     }
     CdmaSmsMessage *message = static_cast<CdmaSmsMessage *>(smsBaseMessage.get());
     std::shared_ptr<SmsReceiveIndexer> indexer;
-    if (!message->IsConcatMsg()) {
+    std::shared_ptr<SmsConcat> smsConcat = GetValidConcatMsg(smsBaseMessage);
+    if (smsConcat == nullptr) {
         indexer = std::make_shared<SmsReceiveIndexer>(message->GetRawPdu(), message->GetScTimestamp(),
             message->GetDestPort(), true, false, message->GetOriginatingAddress(),
             message->GetVisibleOriginatingAddress(), message->GetVisibleMessageBody());
     } else {
-        std::shared_ptr<SmsConcat> smsConcat = message->GetConcatMsg();
-        if (smsConcat == nullptr) {
-            return;
-        }
         indexer = std::make_shared<SmsReceiveIndexer>(message->GetRawPdu(), message->GetScTimestamp(),
             message->GetDestPort(), true, message->GetOriginatingAddress(), message->GetVisibleOriginatingAddress(),
             smsConcat->msgRef, smsConcat->seqNum, smsConcat->totalSeg, false, message->GetVisibleMessageBody());
@@ -136,7 +133,7 @@ void CdmaSmsReceiveHandler::HandleRemainDataShare(const std::shared_ptr<SmsBaseM
     }
     HILOG_COMM_INFO("received a cdma sms, the refid is %{public}d, this is %{public}d, a total of %{public}d",
         indexer->GetMsgRefId(), indexer->GetMsgSeqId(), indexer->GetMsgCount());
-    if (indexer->GetIsText() && message->IsConcatMsg() && IsRepeatedMessagePart(indexer)) {
+    if (indexer->GetIsText() && (smsConcat != nullptr) && IsRepeatedMessagePart(indexer)) {
         SmsHiSysEvent::WriteSmsReceiveFaultEvent(slotId_, SmsMmsMessageType::SMS_SHORT_MESSAGE,
             SmsMmsErrorCode::SMS_ERROR_REPEATED_ERROR, "cdma message repeated error");
         return;
@@ -166,15 +163,12 @@ int32_t CdmaSmsReceiveHandler::HandleSmsOtherSvcid(const std::shared_ptr<SmsBase
     CdmaSmsMessage *message = static_cast<CdmaSmsMessage *>(smsBaseMessage.get());
     // Encapsulate key information to Tracker
     std::shared_ptr<SmsReceiveIndexer> indexer;
-    if (!message->IsConcatMsg()) {
+    std::shared_ptr<SmsConcat> smsConcat = GetValidConcatMsg(smsBaseMessage);
+    if (smsConcat == nullptr) {
         indexer = std::make_shared<SmsReceiveIndexer>(message->GetRawPdu(), message->GetScTimestamp(),
             message->GetDestPort(), true, false, message->GetOriginatingAddress(),
             message->GetVisibleOriginatingAddress(), message->GetVisibleMessageBody());
     } else {
-        std::shared_ptr<SmsConcat> smsConcat = message->GetConcatMsg();
-        if (smsConcat == nullptr) {
-            return AckIncomeCause::SMS_ACK_UNKNOWN_ERROR;
-        }
         indexer = std::make_shared<SmsReceiveIndexer>(message->GetRawPdu(), message->GetScTimestamp(),
             message->GetDestPort(), true, message->GetOriginatingAddress(), message->GetVisibleOriginatingAddress(),
             smsConcat->msgRef, smsConcat->seqNum, smsConcat->totalSeg, false, message->GetVisibleMessageBody());
@@ -186,7 +180,7 @@ int32_t CdmaSmsReceiveHandler::HandleSmsOtherSvcid(const std::shared_ptr<SmsBase
     }
     HILOG_COMM_INFO("received a cdma sms, the refid is %{public}d, this is %{public}d, a total of %{public}d",
         indexer->GetMsgRefId(), indexer->GetMsgSeqId(), indexer->GetMsgCount());
-    if (indexer->GetIsText() && message->IsConcatMsg() && IsRepeatedMessagePart(indexer)) {
+    if (indexer->GetIsText() && (smsConcat != nullptr) && IsRepeatedMessagePart(indexer)) {
         SmsHiSysEvent::WriteSmsReceiveFaultEvent(slotId_, SmsMmsMessageType::SMS_SHORT_MESSAGE,
             SmsMmsErrorCode::SMS_ERROR_REPEATED_ERROR, "cdma message repeated error");
         return AckIncomeCause::SMS_ACK_RESULT_OK;
