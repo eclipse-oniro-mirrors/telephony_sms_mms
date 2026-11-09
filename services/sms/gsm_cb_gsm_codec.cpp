@@ -32,6 +32,22 @@ static constexpr uint8_t MAX_ETWS_PDU_LEN = 56;
 static constexpr uint8_t MAX_PAGE_NUM = 15;
 static constexpr uint16_t GSM_ETWS_BASE_MASK = 0x1100;
 
+namespace {
+/**
+ * refer to 3GPP TS 23.041 9.4.1.2.4: a page parameter field of 0000 shall be treated as 0001 0001 (single page),
+ * a page number greater than the number of pages is invalid as well and is handled the same way
+ */
+void DecodePageParameter(uint8_t pageParameter, GsmCbCodec::GsmCbMessageHeader &header)
+{
+    header.totalPages = static_cast<uint8_t>(pageParameter & HEX_VALUE_0F);
+    header.page = static_cast<uint8_t>((pageParameter & HEX_VALUE_F0) >> HEX_VALUE_04);
+    if (header.totalPages == 0 || header.page == 0 || header.page > header.totalPages) {
+        header.totalPages = 1;
+        header.page = 1;
+    }
+}
+} // namespace
+
 GsmCbGsmCodec::GsmCbGsmCodec(std::shared_ptr<GsmCbCodec::GsmCbMessageHeader> header,
     std::shared_ptr<GsmCbPduDecodeBuffer> buffer, std::shared_ptr<GsmCbCodec> cbCodec)
 {
@@ -115,17 +131,17 @@ bool GsmCbGsmCodec::Decode2gHeaderEtws()
         TELEPHONY_LOGE("get data error.");
         return false;
     }
+    // refer to 3GPP TS 23.041 9.3.24 Warning-Type: 7 bit warning type value, Emergency User Alert bit, Popup bit
     cbHeader_->warningType = (oneByte & HEX_VALUE_FE) >> 1;
-    if (cbHeader_->msgId >= GSM_ETWS_BASE_MASK) {
-        cbCodec_->GetWarningType(cbHeader_->warningType);
-    }
+    cbHeader_->bEtwsEmergencyUserAlert = (oneByte & HEX_VALUE_01) != 0;
     if (!cbPduBuffer_->GetOneByte(oneByte)) {
         TELEPHONY_LOGE("get data error.");
         return false;
     }
     cbHeader_->totalPages = 1;
-    bool activatePopup = (oneByte & HEX_VALUE_80) != 0;
-    TELEPHONY_LOGI("activatePopup:%{public}d.", activatePopup);
+    cbHeader_->bEtwsPopup = (oneByte & HEX_VALUE_80) != 0;
+    TELEPHONY_LOGI("warningType:%{public}d, emergencyUserAlert:%{public}d, popup:%{public}d.",
+        cbHeader_->warningType, cbHeader_->bEtwsEmergencyUserAlert, cbHeader_->bEtwsPopup);
     return true;
 }
 
@@ -146,10 +162,7 @@ bool GsmCbGsmCodec::Decode2gHeaderCommonCb()
         TELEPHONY_LOGE("get data error.");
         return false;
     }
-    uint8_t temp = oneByte;
-    cbHeader_->totalPages = temp & HEX_VALUE_0F;
-    cbHeader_->page = (temp & HEX_VALUE_F0) >> HEX_VALUE_04;
-
+    DecodePageParameter(oneByte, *cbHeader_);
     if (!cbPduBuffer_->GetOneByte(oneByte)) {
         TELEPHONY_LOGE("get data error.");
         return false;
@@ -183,6 +196,31 @@ bool GsmCbGsmCodec::Decode2gHeaderCommonCb()
     return true;
 }
 
+namespace {
+/**
+ * checks the 8bit or UCS2 content of a GSM CB page, refer to 3GPP TS 23.040 9.2.3.24: with a user data header
+ * the content starts with UDHL followed by the user data header, both are skipped
+ */
+bool CheckPageContent(GsmCbPduDecodeBuffer &buffer, uint16_t dataLen, bool hasUdh)
+{
+    if (dataLen == 0 || buffer.pduBuffer_ == nullptr || (buffer.GetCurPosition() + dataLen) > buffer.GetSize()) {
+        TELEPHONY_LOGE("CB pdu data error.");
+        return false;
+    }
+    if (!hasUdh) {
+        return true;
+    }
+    uint8_t udhl = static_cast<uint8_t>(buffer.pduBuffer_[buffer.GetCurPosition()]);
+    uint16_t udhLen = static_cast<uint16_t>(udhl + HEX_VALUE_01);
+    if (udhLen > dataLen) {
+        TELEPHONY_LOGE("CB UDH length error.");
+        return false;
+    }
+    buffer.SetPointer(buffer.GetCurPosition() + udhLen);
+    return true;
+}
+} // namespace
+
 /**
  * refer to 3GPP TS 23.041 V4.1.0 9.4.2.2 Message Parameter
  */
@@ -215,9 +253,7 @@ bool GsmCbGsmCodec::Decode2gCbMsg()
                 dataLen -= HEX_VALUE_02;
             }
 
-            if (dataLen == 0 || cbPduBuffer_->pduBuffer_ == nullptr ||
-                (cbPduBuffer_->GetCurPosition() + dataLen) > cbPduBuffer_->GetSize()) {
-                TELEPHONY_LOGE("CB pdu data error.");
+            if (!CheckPageContent(*cbPduBuffer_, dataLen, cbHeader_->dcs.bUDH)) {
                 return false;
             }
             for (uint32_t i = cbPduBuffer_->GetCurPosition(); i < cbPduBuffer_->GetSize(); i++) {
@@ -254,12 +290,23 @@ bool GsmCbGsmCodec::Decode2gCbMsg7bit(uint16_t dataLen)
         unpackLen = unpackLen - GsmCbCodec::CB_IOS639_LANG_SIZE;
         offset = GsmCbCodec::CB_IOS639_LANG_SIZE;
     }
+    if (cbHeader_->dcs.bUDH) {
+        // refer to 3GPP TS 23.040 9.2.3.24: the text starts at the first septet boundary after the user data header
+        uint16_t udhBits = static_cast<uint16_t>((dataPdu[0] + HEX_VALUE_01) * SMS_BYTE_BIT);
+        uint16_t udhSeptets = static_cast<uint16_t>((udhBits + GSM_CODE_BIT - 1) / GSM_CODE_BIT);
+        if (udhSeptets > unpackLen) {
+            TELEPHONY_LOGE("CB UDH length error.");
+            return false;
+        }
+        unpackLen = static_cast<uint16_t>(unpackLen - udhSeptets);
+        offset = udhSeptets;
+    }
     if (offset + unpackLen >= (MAX_PAGE_PDU_LEN * SMS_BYTE_BIT / GSM_CODE_BIT) + 1) {
         TELEPHONY_LOGE("CB pdu data error.");
         return false;
     }
     for (uint16_t i = 0; i < unpackLen; i++) {
-        messageRaw_.push_back(static_cast<char>(pageData[i]));
+        messageRaw_.push_back(static_cast<char>(pageData[offset + i]));
     }
     cbCodec_->SetCbMessageRaw(messageRaw_);
     return true;

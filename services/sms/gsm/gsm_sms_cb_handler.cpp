@@ -76,6 +76,9 @@ uint8_t GsmSmsCbHandler::CheckCbMessage(const std::shared_ptr<GsmCbCodec> &cbMes
         if (*cbInfo.header.get() == *cbHeader.get()) {
             int updateNum = cbHeader->serialNum.updateNum - cbInfo.header->serialNum.updateNum;
             if (updateNum != 0) {
+                // refer to 3GPP TS 23.041 9.4.1.2.1: a changed update number means the content has changed,
+                // drop the cached pages of the other version so that this version is assembled on its own
+                cbMsgList_.erase(cbMsgList_.begin() + i);
                 break;
             }
 
@@ -161,9 +164,10 @@ void GsmSmsCbHandler::ClearExpiredMessage()
     }
     std::time_t timep;
     int64_t currentTime = time(&timep);
-    for (auto i = cbMsgList_.size() - 1; i > 0; i--) {
-        if (currentTime - cbMsgList_[i].header->recvTime > static_cast<long long>(DEFAULT_EXPIRED_TIME)) {
-            cbMsgList_.erase(cbMsgList_.begin(), cbMsgList_.begin() + i + 1);
+    for (auto i = cbMsgList_.size(); i > 0; i--) {
+        if (cbMsgList_[i - 1].header != nullptr &&
+            currentTime - cbMsgList_[i - 1].header->recvTime > static_cast<long long>(DEFAULT_EXPIRED_TIME)) {
+            cbMsgList_.erase(cbMsgList_.begin(), cbMsgList_.begin() + i);
             TELEPHONY_LOGI("ClearExpiredMessage clear message count: %{public}zu", i);
             return;
         }
@@ -382,7 +386,15 @@ void GsmSmsCbHandler::GetCbData(const std::shared_ptr<GsmCbCodec> &cbMessage, Sm
     cbMessage->GetCmasUrgency(sendData.urgency);
     cbMessage->GetCmasCertainty(sendData.certainty);
     cbMessage->IsEtwsMessage(sendData.isEtws);
-    cbMessage->GetWarningType(sendData.warnType);
+    uint16_t warningType = GsmCbCodec::ETWS_WARNING_TYPE_UNKNOWN;
+    cbMessage->GetWarningType(warningType);
+    // a message that carries no ETWS warning type is reported with an invalid warning type
+    sendData.warnType = SmsCbData::INVALID_WARNING_TYPE;
+    if (warningType != GsmCbCodec::ETWS_WARNING_TYPE_UNKNOWN) {
+        sendData.warnType = static_cast<int32_t>(warningType);
+    }
+    cbMessage->IsEtwsEmergencyUserAlert(sendData.isEtwsEmergencyUserAlert);
+    cbMessage->IsEtwsPopupAlert(sendData.isEtwsPopupAlert);
     cbMessage->IsCmasMessage(sendData.isCmas);
     cbMessage->GetSerialNum(sendData.serial);
     cbMessage->GetReceiveTime(sendData.recvTime);
@@ -418,6 +430,8 @@ void GsmSmsCbHandler::PackageWantData(SmsCbData::CbData &sendData, EventFwk::Wan
     want.SetParam(SmsCbData::DCS, static_cast<char>(sendData.dcs));
     want.SetParam(SmsCbData::IS_ETWS_PRIMARY, sendData.isPrimary);
     want.SetParam(SmsCbData::IS_ETWS_MESSAGE, sendData.isEtws);
+    want.SetParam(SmsCbData::IS_ETWS_EMERGENCY_USER_ALERT, sendData.isEtwsEmergencyUserAlert);
+    want.SetParam(SmsCbData::IS_ETWS_POPUP_ALERT, sendData.isEtwsPopupAlert);
     want.SetParam(SmsCbData::PLMN, StringUtils::ToUtf8(plmn_));
     want.SetParam(SmsCbData::LAC, static_cast<int>(lac_));
     want.SetParam(SmsCbData::CID, static_cast<int>(cid_));

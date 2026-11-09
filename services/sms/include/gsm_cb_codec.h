@@ -27,6 +27,8 @@ namespace Telephony {
 class GsmCbCodec : public std::enable_shared_from_this<GsmCbCodec> {
 public:
     static constexpr uint8_t CB_IOS639_LANG_SIZE = 3;
+    /** warning type of a message that carries no ETWS warning type */
+    static constexpr uint16_t ETWS_WARNING_TYPE_UNKNOWN = 0xFFFF;
     /**
      * from 3GPP TS 23.041 V4.1.0 (2001-06) 5 section Network Architecture
      * GSM Cell broadcast message 0x01
@@ -225,6 +227,8 @@ public:
         CBNetType cbNetType;
         uint8_t cbMsgType;
         unsigned short warningType;
+        bool bEtwsEmergencyUserAlert = false; /** Emergency User Alert bit of the ETWS primary Warning-Type */
+        bool bEtwsPopup = false; /** Popup bit of the ETWS primary Warning-Type */
         GsmCBMsgSerialNum serialNum;
         unsigned short msgId;
         uint8_t langType;
