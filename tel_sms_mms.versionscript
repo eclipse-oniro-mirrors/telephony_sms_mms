@@ -22,13 +22,6 @@
 {
   global:
     __cfi_check;
-    extern "C++" {
-      *DelayedSingleton*;
-      *DelayedRefSingleton*;
-      *Singleton*;
-      *delegator_*;
-      *instance_*;
-    };
   local:
     *;
 };
