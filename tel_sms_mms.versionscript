@@ -11,14 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# libtel_sms_mms.z.so (SA 4008) symbol governance whitelist.
-# SA libs are loaded by safwk via dlopen only (no dlsym lookup, see
-# samgr parse_util.cpp); registration relies on static constructors.
-# Keep the cross-DSO CFI entry plus inline-template singleton/delegator
-# static members and their guards (DelayedSingleton / DelayedRefSingleton /
-# Singleton / delegator_ / instance_), which must stay global to preserve
-# cross-DSO singleton unification by the dynamic linker.
-
 {
   global:
     __cfi_check;
