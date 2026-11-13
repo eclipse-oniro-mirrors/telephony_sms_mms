@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Huawei Device Co., Ltd.
+ * Copyright (c) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,17 +17,16 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
-#include <cstring>
+#include <fuzzer/FuzzedDataProvider.h>
 #include <string>
 #include <vector>
 
 #include "addsmstoken_fuzzer.h"
 #include "gsm_pdu_code_type.h"
 #include "msg_text_convert_common.h"
-#include "securec.h"
 #include "sms_common_utils.h"
-#include "sms_policy_utils.h"
 #include "sms_pdu_code_type.h"
 #include "string_utils.h"
 #include "text_coder.h"
@@ -38,80 +37,69 @@ namespace {
 constexpr size_t MIN_SIZE_NUM = 1;
 constexpr size_t MAX_TEXT_SIZE = 256;
 constexpr size_t BUFFER_SIZE = 512;
+constexpr uint8_t ASCII_PRINTABLE_BASE = 0x20;
+constexpr uint8_t ASCII_PRINTABLE_RANGE = 0x5F;
 constexpr uint8_t BIT_MOD = 8;
 constexpr uint8_t MONTH_MOD = 12;
 constexpr uint8_t DAY_MOD = 28;
 constexpr uint8_t HOUR_MOD = 24;
 constexpr uint8_t MINUTE_MOD = 60;
-constexpr uint8_t DTMF_CHAR_A = 0x0A;
-constexpr uint8_t DTMF_CHAR_B = 0x0B;
-constexpr uint8_t DTMF_CHAR_C = 0x0C;
 constexpr uint32_t CHARSET_MOD = 0x800;
 constexpr uint32_t CODING_NATIONAL_MOD = 4;
 constexpr uint32_t DATA_CODING_SCHEME_MOD = static_cast<uint32_t>(DATA_CODING_ASCII7BIT) + 1;
+constexpr uint32_t LANG_ID_MOD = 32;
 constexpr size_t BOOL_MOD = 2;
 constexpr size_t LOCKING_SHIFT_MOD = 3;
+constexpr uint32_t GROUP_COUNT = 3;
 static_assert(DATA_CODING_SCHEME_MOD > 0, "Data coding scheme modulo must not be zero");
 
-std::string MakeString(const uint8_t *data, size_t size)
+std::string MakeString(FuzzedDataProvider &fdp)
 {
-    return std::string(reinterpret_cast<const char *>(data), size);
-}
-
-std::vector<uint8_t> MakeVector(const uint8_t *data, size_t size)
-{
-    size_t copySize = std::min(size, MAX_TEXT_SIZE);
-    return std::vector<uint8_t>(data, data + copySize);
-}
-
-uint32_t MakeUint32(const uint8_t *data, size_t size)
-{
-    uint32_t value = 0;
-    size_t copyLen = std::min(size, sizeof(value));
-    if (copyLen > 0) {
-        errno_t err = memcpy_s(&value, sizeof(value), data, copyLen);
-        if (err != EOK) {
-            return 0;
-        }
+    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, MAX_TEXT_SIZE);
+    std::vector<uint8_t> raw = fdp.ConsumeBytes<uint8_t>(len);
+    std::string text;
+    text.reserve(raw.size());
+    for (uint8_t byte : raw) {
+        text.push_back(static_cast<char>(ASCII_PRINTABLE_BASE + byte % ASCII_PRINTABLE_RANGE));
     }
-    return value;
+    return text;
 }
 
-std::array<uint8_t, BUFFER_SIZE> MakeArray(const uint8_t *data, size_t size)
+std::vector<uint8_t> MakeBytes(FuzzedDataProvider &fdp, size_t maxLen)
 {
-    std::array<uint8_t, BUFFER_SIZE> buffer = {0};
-    size_t copySize = std::min(size, buffer.size());
-    if (copySize > 0) {
-        errno_t err = memcpy_s(buffer.data(), buffer.size(), data, copySize);
-        if (err != EOK) {
-            buffer.fill(0);
-        }
-    }
-    return buffer;
+    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, maxLen);
+    return fdp.ConsumeBytes<uint8_t>(len);
 }
 
-SmsTimeAbs MakeSmsTimeAbs(const uint8_t *data, size_t size)
+uint16_t MakeDataLen(FuzzedDataProvider &fdp, size_t bufferSize, size_t maxLen)
+{
+    size_t limit = std::min(bufferSize, maxLen);
+    return static_cast<uint16_t>(fdp.ConsumeIntegralInRange<size_t>(0, limit));
+}
+
+SmsTimeAbs MakeSmsTimeAbs(FuzzedDataProvider &fdp)
 {
     SmsTimeAbs timeAbs;
-    uint32_t value = MakeUint32(data, size);
-    timeAbs.year = static_cast<uint8_t>(value);
-    timeAbs.month = static_cast<uint8_t>((value % MONTH_MOD) + 1);
-    timeAbs.day = static_cast<uint8_t>((value % DAY_MOD) + 1);
-    timeAbs.hour = static_cast<uint8_t>(value % HOUR_MOD);
-    timeAbs.minute = static_cast<uint8_t>(value % MINUTE_MOD);
-    timeAbs.second = static_cast<uint8_t>((value / MINUTE_MOD) % MINUTE_MOD);
-    timeAbs.timeZone = static_cast<int32_t>(value % HOUR_MOD);
+    timeAbs.year = fdp.ConsumeIntegral<uint8_t>();
+    timeAbs.month = fdp.ConsumeIntegralInRange<uint8_t>(0, MONTH_MOD - 1) + 1;
+    timeAbs.day = fdp.ConsumeIntegralInRange<uint8_t>(0, DAY_MOD - 1) + 1;
+    timeAbs.hour = fdp.ConsumeIntegralInRange<uint8_t>(0, HOUR_MOD - 1);
+    timeAbs.minute = fdp.ConsumeIntegralInRange<uint8_t>(0, MINUTE_MOD - 1);
+    timeAbs.second = fdp.ConsumeIntegralInRange<uint8_t>(0, MINUTE_MOD - 1);
+    timeAbs.timeZone = fdp.ConsumeIntegral<int32_t>();
     return timeAbs;
 }
 
-void FuzzStringUtils(const uint8_t *data, size_t size)
+void FuzzStringUtils(FuzzedDataProvider &fdp)
 {
-    std::string rawText = MakeString(data, std::min(size, MAX_TEXT_SIZE));
-    std::vector<uint8_t> rawVector = MakeVector(data, size);
+    std::string rawText = MakeString(fdp);
+    std::vector<uint8_t> rawVector = MakeBytes(fdp, MAX_TEXT_SIZE);
+    std::string url = MakeString(fdp);
+
     StringUtils::StringToHex(rawText);
     StringUtils::StringToHex(rawVector);
-    StringUtils::StringToHex(reinterpret_cast<const char *>(data), static_cast<int>(std::min(size, MAX_TEXT_SIZE)));
-    StringUtils::StringToHex(nullptr, static_cast<int>(std::min(size, MAX_TEXT_SIZE)));
+    StringUtils::StringToHex(rawText.c_str(), static_cast<int>(rawText.length()));
+    StringUtils::StringToHex(nullptr, static_cast<int>(rawText.length()));
     std::string hexText = StringUtils::StringToHex(rawText);
     StringUtils::HexToString(rawText);
     StringUtils::HexToString(hexText);
@@ -122,7 +110,6 @@ void FuzzStringUtils(const uint8_t *data, size_t size)
     StringUtils::IsEmpty(rawText);
     StringUtils::IsEmpty(" \t\r\n");
 
-    std::string url = rawText + "://host:" + std::to_string(size) + "/path?query=" + rawText;
     StringUtils::GetProtocolFromURL(url);
     StringUtils::GetHostnameFromURL(url);
     StringUtils::GetHostnameWithPortFromURL(url);
@@ -133,73 +120,68 @@ void FuzzStringUtils(const uint8_t *data, size_t size)
     StringUtils::GetPortFromURL(rawText);
 }
 
-void FuzzSmsCommonUtils(const uint8_t *data, size_t size)
+void FuzzSevenBitCodec(FuzzedDataProvider &fdp)
 {
-    auto source = MakeArray(data, size);
+    std::vector<uint8_t> source = MakeBytes(fdp, BUFFER_SIZE);
     std::array<uint8_t, BUFFER_SIZE> packed = {0};
     std::array<uint8_t, BUFFER_SIZE> unpacked = {0};
-    uint16_t dataLen = static_cast<uint16_t>(std::min(size, static_cast<size_t>(MAX_USER_DATA_LEN)));
-    uint16_t packLen = static_cast<uint16_t>(packed.size());
-    uint8_t fillBits = static_cast<uint8_t>(size % BIT_MOD);
-    uint16_t packedLen = SmsCommonUtils::Pack7bitChar(source.data(), dataLen, fillBits, packed.data(), packLen);
-    if (packedLen == 0) {
-        packedLen = dataLen;
-    }
+    uint8_t fillBits = fdp.ConsumeIntegralInRange<uint8_t>(0, BIT_MOD - 1);
+    uint16_t dataLen = MakeDataLen(fdp, source.size(), MAX_USER_DATA_LEN);
+    uint16_t packLen = fdp.ConsumeIntegralInRange<uint16_t>(0, static_cast<uint16_t>(packed.size()));
+    SmsCommonUtils::Pack7bitChar(source.data(), dataLen, fillBits, packed.data(), packLen);
     SmsCommonUtils::Pack7bitChar(nullptr, dataLen, fillBits, packed.data(), packLen);
     SmsCommonUtils::Pack7bitChar(source.data(), dataLen, fillBits, nullptr, packLen);
-    SmsCommonUtils::Unpack7bitChar(packed.data(), packedLen, fillBits, unpacked.data(), packLen);
-    SmsCommonUtils::Unpack7bitChar(nullptr, packedLen, fillBits, unpacked.data(), packLen);
-    SmsCommonUtils::Unpack7bitCharForCBPdu(packed.data(), packedLen, fillBits, unpacked.data(), packLen);
-    SmsCommonUtils::Unpack7bitCharForCBPdu(packed.data(), 0, fillBits, unpacked.data(), packLen);
-    SmsCommonUtils::DtmfCharToDigit(static_cast<uint8_t>(MakeUint32(data, size)));
-    SmsCommonUtils::DtmfCharToDigit(DTMF_CHAR_A);
-    SmsCommonUtils::DtmfCharToDigit(DTMF_CHAR_B);
-    SmsCommonUtils::DtmfCharToDigit(DTMF_CHAR_C);
-    SmsCommonUtils::DigitToDtmfChar(static_cast<uint8_t>(MakeUint32(data, size)));
-    SmsCommonUtils::DigitToDtmfChar('0');
-    SmsCommonUtils::DigitToDtmfChar('*');
-    SmsCommonUtils::DigitToDtmfChar('#');
-    SmsTimeAbs timeAbs = MakeSmsTimeAbs(data, size);
-    SmsCommonUtils::ConvertTime(timeAbs);
+
+    std::vector<uint8_t> rawTpdu = MakeBytes(fdp, BUFFER_SIZE);
+    uint16_t tpduLen = MakeDataLen(fdp, rawTpdu.size(), MAX_USER_DATA_LEN);
+    uint16_t unpackLen = fdp.ConsumeIntegralInRange<uint16_t>(0, static_cast<uint16_t>(unpacked.size()));
+    SmsCommonUtils::Unpack7bitChar(rawTpdu.data(), tpduLen, fillBits, unpacked.data(), unpackLen);
+    SmsCommonUtils::Unpack7bitChar(nullptr, tpduLen, fillBits, unpacked.data(), unpackLen);
+    SmsCommonUtils::Unpack7bitCharForCBPdu(rawTpdu.data(), tpduLen, fillBits, unpacked.data(), unpackLen);
+    SmsCommonUtils::Unpack7bitCharForCBPdu(rawTpdu.data(), 0, fillBits, unpacked.data(), unpackLen);
 }
 
-void FuzzTextCoder(const uint8_t *data, size_t size)
+void FuzzSmsCommonUtils(FuzzedDataProvider &fdp)
 {
-    auto source = MakeArray(data, size);
+    FuzzSevenBitCodec(fdp);
+    SmsCommonUtils::DtmfCharToDigit(fdp.ConsumeIntegral<uint8_t>());
+    SmsCommonUtils::DigitToDtmfChar(fdp.ConsumeIntegral<uint8_t>());
+    SmsCommonUtils::ConvertTime(MakeSmsTimeAbs(fdp));
+}
+
+void FuzzTextCoder(FuzzedDataProvider &fdp)
+{
+    std::vector<uint8_t> source = MakeBytes(fdp, MAX_TEXT_SIZE);
     std::array<uint8_t, BUFFER_SIZE> dest = {0};
-    int srcLength = static_cast<int>(std::min(size, MAX_TEXT_SIZE));
-    int maxLength = static_cast<int>(dest.size());
-    std::string rawText = MakeString(data, std::min(size, MAX_TEXT_SIZE));
+    int srcLength = static_cast<int>(fdp.ConsumeIntegralInRange<size_t>(0, source.size()));
+    int maxLength = static_cast<int>(fdp.ConsumeIntegralInRange<size_t>(0, dest.size()));
+    std::string rawText = MakeString(fdp);
     std::string encodeString;
     TextCoder &textCoder = TextCoder::Instance();
-    textCoder.GetEncodeString(encodeString, MakeUint32(data, size) % CHARSET_MOD,
-        static_cast<uint32_t>(rawText.size()), rawText);
 
-    MSG_LANGUAGE_ID_T langId = MSG_ID_RESERVED_LANG;
+    textCoder.GetEncodeString(encodeString, fdp.ConsumeIntegralInRange<uint32_t>(0, CHARSET_MOD),
+        static_cast<uint32_t>(rawText.size()), rawText);
+    MSG_LANGUAGE_ID_T langId = static_cast<MSG_LANGUAGE_ID_T>(fdp.ConsumeIntegralInRange<uint32_t>(0, LANG_ID_MOD));
     textCoder.Utf8ToGsm7bit(dest.data(), maxLength, source.data(), srcLength, langId);
     textCoder.Utf8ToGsm7bit(nullptr, maxLength, source.data(), srcLength, langId);
     textCoder.Utf8ToUcs2(dest.data(), maxLength, source.data(), srcLength);
     textCoder.Utf8ToUcs2(dest.data(), maxLength, nullptr, srcLength);
-    DataCodingScheme scheme = static_cast<DataCodingScheme>(size % DATA_CODING_SCHEME_MOD);
+
+    auto scheme = static_cast<DataCodingScheme>(fdp.ConsumeIntegralInRange<uint32_t>(0, DATA_CODING_SCHEME_MOD));
     textCoder.CdmaUtf8ToAuto(dest.data(), maxLength, source.data(), srcLength, scheme);
-    auto nationalType = static_cast<SmsCodingNationalType>(size % CODING_NATIONAL_MOD);
+    uint32_t nationalIndex = fdp.ConsumeIntegralInRange<uint32_t>(0, CODING_NATIONAL_MOD);
+    auto nationalType = static_cast<SmsCodingNationalType>(nationalIndex);
     textCoder.GsmUtf8ToAuto(dest.data(), maxLength, source.data(), srcLength, scheme, nationalType, langId);
 
     MsgLangInfo langInfo;
-    langInfo.bSingleShift = (size % BOOL_MOD) == 0;
-    langInfo.bLockingShift = (size % LOCKING_SHIFT_MOD) == 0;
-    langInfo.singleLang = static_cast<MSG_LANGUAGE_ID_T>(size);
-    langInfo.lockingLang = static_cast<MSG_LANGUAGE_ID_T>(size >> 1);
+    langInfo.bSingleShift = fdp.ConsumeIntegralInRange<size_t>(0, BOOL_MOD - 1) == 0;
+    langInfo.bLockingShift = fdp.ConsumeIntegralInRange<size_t>(0, LOCKING_SHIFT_MOD - 1) == 0;
+    langInfo.singleLang = static_cast<MSG_LANGUAGE_ID_T>(fdp.ConsumeIntegralInRange<uint32_t>(0, LANG_ID_MOD));
+    langInfo.lockingLang = static_cast<MSG_LANGUAGE_ID_T>(fdp.ConsumeIntegralInRange<uint32_t>(0, LANG_ID_MOD));
     textCoder.Gsm7bitToUtf8(dest.data(), maxLength, source.data(), srcLength, langInfo);
     textCoder.Ucs2ToUtf8(dest.data(), maxLength, source.data(), srcLength);
     textCoder.ShiftjisToUtf8(dest.data(), maxLength, source.data(), srcLength);
-    textCoder.GetUCS2Value(MakeUint32(data, size) % CHARSET_MOD);
-}
-
-void FuzzPolicyUtils()
-{
-    SmsPolicyUtils::IsSmsPolicyDisable();
-    SmsPolicyUtils::IsMmsPolicyDisable();
+    textCoder.GetUCS2Value(fdp.ConsumeIntegralInRange<uint32_t>(0, CHARSET_MOD));
 }
 } // namespace
 
@@ -208,10 +190,19 @@ void DoSmsCodecUtilsFuzzTest(const uint8_t *data, size_t size)
     if (data == nullptr || size < MIN_SIZE_NUM) {
         return;
     }
-    FuzzStringUtils(data, size);
-    FuzzSmsCommonUtils(data, size);
-    FuzzTextCoder(data, size);
-    FuzzPolicyUtils();
+
+    FuzzedDataProvider fdp(data, size);
+    switch (fdp.ConsumeIntegralInRange<uint32_t>(0, GROUP_COUNT - 1)) {
+        case 0:
+            FuzzStringUtils(fdp);
+            break;
+        case 1:
+            FuzzSmsCommonUtils(fdp);
+            break;
+        default:
+            FuzzTextCoder(fdp);
+            break;
+    }
 }
 } // namespace OHOS
 

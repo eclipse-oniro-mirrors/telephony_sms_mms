@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Huawei Device Co., Ltd.
+ * Copyright (c) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,22 +15,30 @@
 
 #include "smsinterfacestub_fuzzer.h"
 
-#include <algorithm>
+#include <chrono>
+#include <cstddef>
 #include <cstdint>
-#include <cstring>
+#include <fuzzer/FuzzedDataProvider.h>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "addsmstoken_fuzzer.h"
 #include "delivery_short_message_callback_stub.h"
+#include "i_sms_service_interface.h"
 #include "message_option.h"
 #include "message_parcel.h"
 #include "send_short_message_callback_stub.h"
 #include "sms_interface_stub.h"
-#include "sms_service.h"
-#include "securec.h"
 #include "sms_service_ipc_interface_code.h"
-#include "string_utils.h"
+
+#define private public
+#include "core_manager_inner.h"
+#include "sms_service.h"
+#undef private
 
 using namespace OHOS::Telephony;
 namespace OHOS {
@@ -38,360 +46,307 @@ namespace {
 constexpr size_t MIN_SIZE_NUM = 1;
 constexpr size_t MAX_STRING_SIZE = 256;
 constexpr size_t MAX_DATA_SIZE = 256;
-constexpr int32_t VALID_SLOT_ID = 0;
+constexpr uint8_t ASCII_PRINTABLE_BASE = 0x20;
+constexpr uint8_t ASCII_PRINTABLE_RANGE = 0x5F;
+constexpr int32_t MAX_SLOT_ID = 2;
 constexpr int32_t INVALID_SLOT_ID = -1;
-constexpr int32_t ENABLE_MOD = 2;
-constexpr uint32_t SIM_STATUS_MOD = 4;
-constexpr uint32_t INVALID_SIM_STATUS = 8;
-constexpr int32_t MAX_CB_LIST_SIZE = 256;
-constexpr int32_t CB_LIST_SAMPLE_SIZE = 4;
+constexpr int32_t MAX_CB_LIST_SIZE = 16;
+constexpr uint32_t MAX_SIM_STATUS = 8;
 constexpr uint32_t UNKNOWN_CODE_OFFSET = 1000;
-constexpr uint16_t DEFAULT_PORT = 9200;
-constexpr uint16_t PORT_RANGE = 4096;
-constexpr char SPECIFICATION_3GPP[] = "3gpp";
+constexpr uint32_t CODE_MAX = static_cast<uint32_t>(SmsServiceInterfaceCode::GET_SMS_SHORT_CODE_TYPE) + 1;
+constexpr int32_t INIT_WAIT_TIMES = 200;
+constexpr auto INIT_WAIT_INTERVAL = std::chrono::milliseconds(1);
 
-std::string MakeString(const uint8_t *data, size_t size)
-{
-    return std::string(reinterpret_cast<const char *>(data), std::min(size, MAX_STRING_SIZE));
-}
+static bool g_isInited = false;
 
-std::u16string MakeString16(const uint8_t *data, size_t size)
+bool WaitInterfaceManagerReady(SmsService &service)
 {
-    return StringUtils::ToUtf16(MakeString(data, size));
-}
-
-uint32_t MakeUint32(const uint8_t *data, size_t size)
-{
-    uint32_t value = 0;
-    size_t copyLen = std::min(size, sizeof(value));
-    if (copyLen > 0) {
-        errno_t err = memcpy_s(&value, sizeof(value), data, copyLen);
-        if (err != EOK) {
-            return 0;
+    for (int32_t attempt = 0; attempt < INIT_WAIT_TIMES; ++attempt) {
+        if (service.GetSmsInterfaceManager(0) != nullptr) {
+            return true;
         }
+        std::this_thread::sleep_for(INIT_WAIT_INTERVAL);
     }
-    return value;
+    return false;
 }
 
-int32_t MakeInt32(const uint8_t *data, size_t size)
+bool IsServiceInited()
 {
-    return static_cast<int32_t>(MakeUint32(data, size));
-}
-
-int64_t MakeInt64(const uint8_t *data, size_t size)
-{
-    int64_t value = 0;
-    size_t copyLen = std::min(size, sizeof(value));
-    if (copyLen > 0) {
-        errno_t err = memcpy_s(&value, sizeof(value), data, copyLen);
-        if (err != EOK) {
-            return 0;
+    if (!g_isInited) {
+        CoreManagerInner::GetInstance().isInitAllObj_ = true;
+        auto service = DelayedSingleton<SmsService>::GetInstance();
+        if (service == nullptr) {
+            return false;
         }
+        service->registerToService_ = true;
+        service->WaitCoreServiceToInit();
+        service->OnStart();
+        if (service->GetServiceRunningState() != static_cast<int32_t>(ServiceRunningState::STATE_RUNNING)) {
+            return false;
+        }
+        g_isInited = WaitInterfaceManagerReady(*service);
     }
-    return value;
+    return g_isInited;
 }
 
-uint16_t MakePort(const uint8_t *data, size_t size)
+std::u16string MakeText(FuzzedDataProvider &fdp)
 {
-    return static_cast<uint16_t>(DEFAULT_PORT + (MakeUint32(data, size) % PORT_RANGE));
+    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, MAX_STRING_SIZE);
+    std::vector<uint8_t> raw = fdp.ConsumeBytes<uint8_t>(len);
+    std::u16string text;
+    text.reserve(raw.size());
+    for (uint8_t byte : raw) {
+        text.push_back(static_cast<char16_t>(ASCII_PRINTABLE_BASE + byte % ASCII_PRINTABLE_RANGE));
+    }
+    return text;
 }
 
-std::vector<uint8_t> MakeDataBuffer(const uint8_t *data, size_t size)
+std::string MakeString(FuzzedDataProvider &fdp)
 {
-    size_t dataLen = std::min(size, MAX_DATA_SIZE);
-    return std::vector<uint8_t>(data, data + dataLen);
+    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, MAX_STRING_SIZE);
+    std::vector<uint8_t> raw = fdp.ConsumeBytes<uint8_t>(len);
+    std::string text;
+    text.reserve(raw.size());
+    for (uint8_t byte : raw) {
+        text.push_back(static_cast<char>(ASCII_PRINTABLE_BASE + byte % ASCII_PRINTABLE_RANGE));
+    }
+    return text;
 }
 
-void WriteDescriptor(MessageParcel &parcel)
+int32_t MakeSlotId(FuzzedDataProvider &fdp)
 {
-    parcel.WriteInterfaceToken(SmsInterfaceStub::GetDescriptor());
+    return fdp.ConsumeIntegralInRange<int32_t>(INVALID_SLOT_ID, MAX_SLOT_ID);
 }
 
-void WriteTextMessageParcel(MessageParcel &parcel, const std::u16string &text, int32_t slotId)
+std::string MakeBundleName(FuzzedDataProvider &fdp)
 {
-    WriteDescriptor(parcel);
-    parcel.WriteInt32(slotId);
-    parcel.WriteString16(text);
-    parcel.WriteString16(text);
-    parcel.WriteString16(text);
-    sptr<ISendShortMessageCallback> sendCallback = new SendShortMessageCallbackStub();
-    sptr<IDeliveryShortMessageCallback> deliveryCallback = new DeliveryShortMessageCallbackStub();
-    parcel.WriteRemoteObject(sendCallback->AsObject().GetRefPtr());
-    parcel.WriteRemoteObject(deliveryCallback->AsObject().GetRefPtr());
-    parcel.WriteString("com.ohos.mms");
+    if (fdp.ConsumeBool()) {
+        return std::string("com.ohos.mms");
+    }
+    return MakeString(fdp);
 }
 
-void WriteDataMessageParcel(MessageParcel &parcel, const uint8_t *data, size_t size, const std::u16string &text,
-    int32_t slotId)
+std::string MakeSpecification(FuzzedDataProvider &fdp)
 {
-    WriteDescriptor(parcel);
-    parcel.WriteInt32(slotId);
-    parcel.WriteString16(text);
-    parcel.WriteString16(text);
-    parcel.WriteInt16(static_cast<int16_t>(MakePort(data, size)));
-    sptr<ISendShortMessageCallback> sendCallback = new SendShortMessageCallbackStub();
-    sptr<IDeliveryShortMessageCallback> deliveryCallback = new DeliveryShortMessageCallbackStub();
-    parcel.WriteRemoteObject(sendCallback->AsObject().GetRefPtr());
-    parcel.WriteRemoteObject(deliveryCallback->AsObject().GetRefPtr());
-    std::vector<uint8_t> dataBuffer = MakeDataBuffer(data, size);
-    parcel.WriteInt16(static_cast<int16_t>(dataBuffer.size()));
-    parcel.WriteRawData(dataBuffer.data(), dataBuffer.size());
+    uint8_t type = fdp.ConsumeIntegralInRange<uint8_t>(0, 2);
+    if (type == 0) {
+        return std::string("3gpp");
+    }
+    if (type == 1) {
+        return std::string("3gpp2");
+    }
+    return MakeString(fdp);
 }
 
-void WriteSimMessageParcel(MessageParcel &parcel, const std::u16string &text, uint32_t status)
+void WriteCallbacks(MessageParcel &parcel, FuzzedDataProvider &fdp)
 {
-    WriteDescriptor(parcel);
-    parcel.WriteInt32(VALID_SLOT_ID);
-    parcel.WriteString16(text);
-    parcel.WriteString16(text);
-    parcel.WriteUint32(status);
-}
-
-void WriteSetCbConfigListParcel(MessageParcel &parcel, const uint8_t *data, size_t size, int32_t listSize)
-{
-    if (size == 0) {
+    if (!fdp.ConsumeBool()) {
         return;
     }
-    WriteDescriptor(parcel);
-    parcel.WriteInt32(VALID_SLOT_ID);
-    parcel.WriteInt32(listSize);
-    for (int32_t index = 0; index < listSize && index < CB_LIST_SAMPLE_SIZE; ++index) {
-        parcel.WriteInt32(static_cast<int32_t>(data[index % size]));
+    sptr<ISendShortMessageCallback> sendCallback = new SendShortMessageCallbackStub();
+    parcel.WriteRemoteObject(sendCallback->AsObject().GetRefPtr());
+    if (!fdp.ConsumeBool()) {
+        return;
     }
-    parcel.WriteInt32(MakeInt32(data, size));
+    sptr<IDeliveryShortMessageCallback> deliveryCallback = new DeliveryShortMessageCallbackStub();
+    parcel.WriteRemoteObject(deliveryCallback->AsObject().GetRefPtr());
 }
 
-void WriteUpdateSimOrSetCbParcel(MessageParcel &parcel, const uint8_t *data, size_t size,
-    const std::u16string &text, SmsServiceInterfaceCode code)
+void WriteTextBody(MessageParcel &parcel, SmsServiceInterfaceCode code, FuzzedDataProvider &fdp)
 {
+    int32_t slotId = MakeSlotId(fdp);
+    std::u16string desAddr = MakeText(fdp);
+    std::u16string scAddr = MakeText(fdp);
+    parcel.WriteInt32(slotId);
+    parcel.WriteString16(desAddr);
+    parcel.WriteString16(scAddr);
+    if (code == SmsServiceInterfaceCode::DATA_BASED_SMS_DELIVERY) {
+        parcel.WriteInt16(fdp.ConsumeIntegral<int16_t>());
+        WriteCallbacks(parcel, fdp);
+        int16_t dataLen = static_cast<int16_t>(fdp.ConsumeIntegralInRange<size_t>(0, MAX_DATA_SIZE));
+        std::vector<uint8_t> payload = fdp.ConsumeBytes<uint8_t>(static_cast<size_t>(dataLen));
+        parcel.WriteInt16(dataLen);
+        if (!payload.empty()) {
+            parcel.WriteRawData(payload.data(), payload.size());
+        }
+        return;
+    }
+    parcel.WriteString16(MakeText(fdp));
+    WriteCallbacks(parcel, fdp);
+    parcel.WriteString(MakeBundleName(fdp));
+}
+
+void WriteSimBody(MessageParcel &parcel, SmsServiceInterfaceCode code, FuzzedDataProvider &fdp)
+{
+    parcel.WriteInt32(MakeSlotId(fdp));
     switch (code) {
-        case SmsServiceInterfaceCode::UPDATE_SIM_MESSAGE:
-            parcel.WriteInt32(VALID_SLOT_ID);
-            parcel.WriteUint32(MakeUint32(data, size));
-            parcel.WriteUint32(MakeUint32(data, size) % SIM_STATUS_MOD);
-            parcel.WriteString16(text);
-            parcel.WriteString16(text);
+        case SmsServiceInterfaceCode::SET_SMSC_ADDRESS:
+            parcel.WriteString16(MakeText(fdp));
             break;
-        case SmsServiceInterfaceCode::SET_CB_CONFIG:
-            parcel.WriteInt32(VALID_SLOT_ID);
-            parcel.WriteBool((size % ENABLE_MOD) == 0);
-            parcel.WriteUint32(MakeUint32(data, size));
-            parcel.WriteUint32(MakeUint32(data, size) + static_cast<uint32_t>(size));
-            parcel.WriteUint8(static_cast<uint8_t>(size));
+        case SmsServiceInterfaceCode::ADD_SIM_MESSAGE:
+            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteUint32(fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_SIM_STATUS));
+            break;
+        case SmsServiceInterfaceCode::DEL_SIM_MESSAGE:
+            parcel.WriteUint32(fdp.ConsumeIntegral<uint32_t>());
+            break;
+        case SmsServiceInterfaceCode::UPDATE_SIM_MESSAGE:
+            parcel.WriteUint32(fdp.ConsumeIntegral<uint32_t>());
+            parcel.WriteUint32(fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_SIM_STATUS));
+            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(MakeText(fdp));
             break;
         default:
             break;
     }
 }
 
-void WriteCommonParcel(MessageParcel &parcel, const uint8_t *data, size_t size, const std::u16string &text,
-    SmsServiceInterfaceCode code)
+void WriteCbConfigList(MessageParcel &parcel, FuzzedDataProvider &fdp)
 {
-    WriteDescriptor(parcel);
+    int32_t listSize = fdp.ConsumeIntegralInRange<int32_t>(0, MAX_CB_LIST_SIZE);
+    parcel.WriteInt32(listSize);
+    for (int32_t index = 0; index < listSize; ++index) {
+        parcel.WriteInt32(fdp.ConsumeIntegral<int32_t>());
+    }
+    parcel.WriteInt32(fdp.ConsumeIntegral<int32_t>());
+}
+
+void WriteConfigBody(MessageParcel &parcel, SmsServiceInterfaceCode code, FuzzedDataProvider &fdp)
+{
     switch (code) {
-        case SmsServiceInterfaceCode::SET_SMSC_ADDRESS:
-            parcel.WriteInt32(VALID_SLOT_ID);
-            parcel.WriteString16(text);
-            break;
-        case SmsServiceInterfaceCode::GET_SMSC_ADDRESS:
-        case SmsServiceInterfaceCode::DEL_SIM_MESSAGE:
-        case SmsServiceInterfaceCode::GET_ALL_SIM_MESSAGE:
-        case SmsServiceInterfaceCode::IS_IMS_SMS_SUPPORTED:
-            parcel.WriteInt32(VALID_SLOT_ID);
-            if (code == SmsServiceInterfaceCode::DEL_SIM_MESSAGE) {
-                parcel.WriteUint32(MakeUint32(data, size));
-            }
-            break;
-        case SmsServiceInterfaceCode::UPDATE_SIM_MESSAGE:
         case SmsServiceInterfaceCode::SET_CB_CONFIG:
-            WriteUpdateSimOrSetCbParcel(parcel, data, size, text, code);
+            parcel.WriteInt32(MakeSlotId(fdp));
+            parcel.WriteBool(fdp.ConsumeBool());
+            parcel.WriteUint32(fdp.ConsumeIntegral<uint32_t>());
+            parcel.WriteUint32(fdp.ConsumeIntegral<uint32_t>());
+            parcel.WriteUint8(fdp.ConsumeIntegral<uint8_t>());
+            break;
+        case SmsServiceInterfaceCode::SET_CB_CONFIG_LIST:
+            parcel.WriteInt32(MakeSlotId(fdp));
+            WriteCbConfigList(parcel, fdp);
             break;
         case SmsServiceInterfaceCode::SET_IMS_SMS_CONFIG:
         case SmsServiceInterfaceCode::SET_DEFAULT_SMS_SLOT_ID:
-            parcel.WriteInt32(VALID_SLOT_ID);
-            parcel.WriteInt32(MakeInt32(data, size) % ENABLE_MOD);
-            break;
-        case SmsServiceInterfaceCode::SPLIT_MESSAGE:
-            parcel.WriteString16(text);
-            break;
-        case SmsServiceInterfaceCode::GET_SMS_SEGMENTS_INFO:
-            parcel.WriteInt32(VALID_SLOT_ID);
-            parcel.WriteString16(text);
-            parcel.WriteBool((size % ENABLE_MOD) == 0);
-            break;
-        case SmsServiceInterfaceCode::GET_SMS_SHORT_CODE_TYPE:
-            parcel.WriteInt32(VALID_SLOT_ID);
-            parcel.WriteString(MakeString(data, size));
+            parcel.WriteInt32(MakeSlotId(fdp));
+            parcel.WriteInt32(fdp.ConsumeIntegral<int32_t>());
             break;
         default:
             break;
     }
 }
 
-void WriteCodecParcel(MessageParcel &parcel, const uint8_t *data, size_t size, const std::u16string &text,
-    SmsServiceInterfaceCode code)
+void WriteQueryBody(MessageParcel &parcel, SmsServiceInterfaceCode code, FuzzedDataProvider &fdp)
 {
-    WriteDescriptor(parcel);
-    std::string src = MakeString(data, size);
     switch (code) {
+        case SmsServiceInterfaceCode::SPLIT_MESSAGE:
+            parcel.WriteString16(MakeText(fdp));
+            break;
+        case SmsServiceInterfaceCode::GET_SMS_SEGMENTS_INFO:
+            parcel.WriteInt32(MakeSlotId(fdp));
+            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteBool(fdp.ConsumeBool());
+            break;
+        case SmsServiceInterfaceCode::GET_SMS_SHORT_CODE_TYPE:
+            parcel.WriteInt32(MakeSlotId(fdp));
+            parcel.WriteString(MakeString(fdp));
+            break;
+        case SmsServiceInterfaceCode::IS_IMS_SMS_SUPPORTED:
+            parcel.WriteInt32(MakeSlotId(fdp));
+            break;
+        default:
+            break;
+    }
+}
+
+void WriteMmsBody(MessageParcel &parcel, SmsServiceInterfaceCode code, FuzzedDataProvider &fdp)
+{
+    switch (code) {
+        case SmsServiceInterfaceCode::SEND_MMS:
+            parcel.WriteInt32(MakeSlotId(fdp));
+            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteInt64(fdp.ConsumeIntegral<int64_t>());
+            parcel.WriteString(MakeBundleName(fdp));
+            break;
+        case SmsServiceInterfaceCode::DOWNLOAD_MMS:
+            parcel.WriteInt32(MakeSlotId(fdp));
+            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(MakeText(fdp));
+            break;
         case SmsServiceInterfaceCode::CREATE_MESSAGE:
-            parcel.WriteString(src);
-            parcel.WriteString(SPECIFICATION_3GPP);
+            parcel.WriteString(MakeString(fdp));
+            parcel.WriteString(MakeSpecification(fdp));
             break;
         case SmsServiceInterfaceCode::MMS_BASE64_ENCODE:
         case SmsServiceInterfaceCode::MMS_BASE64_DECODE:
-            parcel.WriteString16(text);
+            parcel.WriteString16(MakeText(fdp));
             break;
         case SmsServiceInterfaceCode::GET_ENCODE_STRING:
-            parcel.WriteUint32(MakeUint32(data, size));
-            parcel.WriteUint32(static_cast<uint32_t>(src.length()));
-            parcel.WriteString16(text);
-            break;
-        case SmsServiceInterfaceCode::SEND_MMS:
-            parcel.WriteInt32(VALID_SLOT_ID);
-            parcel.WriteString16(text);
-            parcel.WriteString16(text);
-            parcel.WriteString16(text);
-            parcel.WriteString16(text);
-            parcel.WriteInt64(MakeInt64(data, size));
-            parcel.WriteString("com.ohos.mms");
-            break;
-        case SmsServiceInterfaceCode::DOWNLOAD_MMS:
-            parcel.WriteInt32(VALID_SLOT_ID);
-            parcel.WriteString16(text);
-            parcel.WriteString16(text);
-            parcel.WriteString16(text);
-            parcel.WriteString16(text);
+            parcel.WriteUint32(fdp.ConsumeIntegral<uint32_t>());
+            parcel.WriteUint32(fdp.ConsumeIntegral<uint32_t>());
+            parcel.WriteString16(MakeText(fdp));
             break;
         default:
             break;
     }
 }
 
-void CallOnRemoteRequest(SmsInterfaceStub &stub, uint32_t code, MessageParcel &parcel)
+void WriteParcelBody(MessageParcel &parcel, SmsServiceInterfaceCode code, FuzzedDataProvider &fdp)
 {
-    MessageParcel reply;
-    MessageOption option;
-    stub.OnRemoteRequest(code, parcel, reply, option);
-}
-
-void FuzzDescriptorAndUnknownCode(SmsInterfaceStub &stub, const uint8_t *data, size_t size)
-{
-    MessageParcel badDescriptorParcel;
-    badDescriptorParcel.WriteInterfaceToken(u"bad.descriptor");
-    CallOnRemoteRequest(stub, static_cast<uint32_t>(SmsServiceInterfaceCode::HAS_SMS_CAPABILITY), badDescriptorParcel);
-
-    MessageParcel unknownCodeParcel;
-    WriteDescriptor(unknownCodeParcel);
-    uint32_t code = static_cast<uint32_t>(SmsServiceInterfaceCode::HAS_SMS_CAPABILITY) + UNKNOWN_CODE_OFFSET;
-    CallOnRemoteRequest(stub, code + MakeUint32(data, size), unknownCodeParcel);
-}
-
-void FuzzMessageDispatch(SmsInterfaceStub &stub, const uint8_t *data, size_t size, const std::u16string &text)
-{
-    MessageParcel textParcel;
-    WriteTextMessageParcel(textParcel, text, VALID_SLOT_ID);
-    CallOnRemoteRequest(stub, static_cast<uint32_t>(SmsServiceInterfaceCode::TEXT_BASED_SMS_DELIVERY), textParcel);
-
-    MessageParcel invalidTextParcel;
-    WriteTextMessageParcel(invalidTextParcel, text, INVALID_SLOT_ID);
-    CallOnRemoteRequest(
-        stub, static_cast<uint32_t>(SmsServiceInterfaceCode::SEND_SMS_TEXT_WITHOUT_SAVE), invalidTextParcel);
-
-    MessageParcel dataParcel;
-    WriteDataMessageParcel(dataParcel, data, size, text, VALID_SLOT_ID);
-    CallOnRemoteRequest(stub, static_cast<uint32_t>(SmsServiceInterfaceCode::DATA_BASED_SMS_DELIVERY), dataParcel);
-}
-
-void FuzzSimDispatch(SmsInterfaceStub &stub, const uint8_t *data, size_t size, const std::u16string &text)
-{
-    MessageParcel addParcel;
-    WriteSimMessageParcel(addParcel, text, MakeUint32(data, size) % SIM_STATUS_MOD);
-    CallOnRemoteRequest(stub, static_cast<uint32_t>(SmsServiceInterfaceCode::ADD_SIM_MESSAGE), addParcel);
-
-    MessageParcel invalidAddParcel;
-    WriteSimMessageParcel(invalidAddParcel, text, INVALID_SIM_STATUS);
-    CallOnRemoteRequest(stub, static_cast<uint32_t>(SmsServiceInterfaceCode::ADD_SIM_MESSAGE), invalidAddParcel);
-
-    MessageParcel cbListParcel;
-    WriteSetCbConfigListParcel(cbListParcel, data, size, CB_LIST_SAMPLE_SIZE);
-    CallOnRemoteRequest(stub, static_cast<uint32_t>(SmsServiceInterfaceCode::SET_CB_CONFIG_LIST), cbListParcel);
-
-    MessageParcel longCbListParcel;
-    WriteSetCbConfigListParcel(longCbListParcel, data, size, MAX_CB_LIST_SIZE + 1);
-    CallOnRemoteRequest(stub, static_cast<uint32_t>(SmsServiceInterfaceCode::SET_CB_CONFIG_LIST), longCbListParcel);
-}
-
-void FuzzCommonDispatch(SmsInterfaceStub &stub, const uint8_t *data, size_t size, const std::u16string &text)
-{
-    std::vector<SmsServiceInterfaceCode> codes = {
-        SmsServiceInterfaceCode::SET_SMSC_ADDRESS,
-        SmsServiceInterfaceCode::GET_SMSC_ADDRESS,
-        SmsServiceInterfaceCode::DEL_SIM_MESSAGE,
-        SmsServiceInterfaceCode::UPDATE_SIM_MESSAGE,
-        SmsServiceInterfaceCode::GET_ALL_SIM_MESSAGE,
-        SmsServiceInterfaceCode::SET_CB_CONFIG,
-        SmsServiceInterfaceCode::SET_IMS_SMS_CONFIG,
-        SmsServiceInterfaceCode::SET_DEFAULT_SMS_SLOT_ID,
-        SmsServiceInterfaceCode::GET_DEFAULT_SMS_SLOT_ID,
-        SmsServiceInterfaceCode::GET_DEFAULT_SMS_SIM_ID,
-        SmsServiceInterfaceCode::SPLIT_MESSAGE,
-        SmsServiceInterfaceCode::GET_SMS_SEGMENTS_INFO,
-        SmsServiceInterfaceCode::IS_IMS_SMS_SUPPORTED,
-        SmsServiceInterfaceCode::GET_IMS_SHORT_MESSAGE_FORMAT,
-        SmsServiceInterfaceCode::GET_SMS_SHORT_CODE_TYPE,
-        SmsServiceInterfaceCode::HAS_SMS_CAPABILITY,
-    };
-    for (SmsServiceInterfaceCode code : codes) {
-        MessageParcel parcel;
-        WriteCommonParcel(parcel, data, size, text, code);
-        CallOnRemoteRequest(stub, static_cast<uint32_t>(code), parcel);
+    if (code <= SmsServiceInterfaceCode::DATA_BASED_SMS_DELIVERY) {
+        WriteTextBody(parcel, code, fdp);
+        return;
     }
-}
-
-void FuzzCodecDispatch(SmsInterfaceStub &stub, const uint8_t *data, size_t size, const std::u16string &text)
-{
-    std::vector<SmsServiceInterfaceCode> codes = {
-        SmsServiceInterfaceCode::CREATE_MESSAGE,
-        SmsServiceInterfaceCode::MMS_BASE64_ENCODE,
-        SmsServiceInterfaceCode::MMS_BASE64_DECODE,
-        SmsServiceInterfaceCode::GET_ENCODE_STRING,
-        SmsServiceInterfaceCode::SEND_MMS,
-        SmsServiceInterfaceCode::DOWNLOAD_MMS,
-    };
-    for (SmsServiceInterfaceCode code : codes) {
-        MessageParcel parcel;
-        WriteCodecParcel(parcel, data, size, text, code);
-        CallOnRemoteRequest(stub, static_cast<uint32_t>(code), parcel);
+    if (code <= SmsServiceInterfaceCode::GET_ALL_SIM_MESSAGE) {
+        WriteSimBody(parcel, code, fdp);
+        return;
     }
-
-    MessageParcel mismatchEncodeParcel;
-    WriteDescriptor(mismatchEncodeParcel);
-    mismatchEncodeParcel.WriteUint32(MakeUint32(data, size));
-    mismatchEncodeParcel.WriteUint32(static_cast<uint32_t>(MakeString(data, size).length() + 1));
-    mismatchEncodeParcel.WriteString16(text);
-    CallOnRemoteRequest(
-        stub, static_cast<uint32_t>(SmsServiceInterfaceCode::GET_ENCODE_STRING), mismatchEncodeParcel);
+    if (code <= SmsServiceInterfaceCode::GET_DEFAULT_SMS_SIM_ID) {
+        WriteConfigBody(parcel, code, fdp);
+        return;
+    }
+    if (code <= SmsServiceInterfaceCode::HAS_SMS_CAPABILITY) {
+        WriteQueryBody(parcel, code, fdp);
+        return;
+    }
+    WriteMmsBody(parcel, code, fdp);
 }
 } // namespace
 
 void DoSmsInterfaceStubFuzzTest(const uint8_t *data, size_t size)
 {
-    if (data == nullptr || size < MIN_SIZE_NUM) {
+    if (data == nullptr || size < MIN_SIZE_NUM || !IsServiceInited()) {
         return;
     }
-
     auto service = DelayedSingleton<SmsService>::GetInstance();
     if (service == nullptr) {
         return;
     }
-    SmsInterfaceStub &stub = *service;
-    std::u16string text = MakeString16(data, size);
-    FuzzDescriptorAndUnknownCode(stub, data, size);
-    FuzzMessageDispatch(stub, data, size, text);
-    FuzzSimDispatch(stub, data, size, text);
-    FuzzCommonDispatch(stub, data, size, text);
-    FuzzCodecDispatch(stub, data, size, text);
+
+    FuzzedDataProvider fdp(data, size);
+    uint32_t code = fdp.ConsumeIntegralInRange<uint32_t>(0, CODE_MAX - 1);
+    if (fdp.ConsumeBool()) {
+        code += UNKNOWN_CODE_OFFSET;
+    }
+
+    MessageParcel parcel;
+    if (fdp.ConsumeBool()) {
+        parcel.WriteInterfaceToken(SmsInterfaceStub::GetDescriptor());
+    } else {
+        parcel.WriteInterfaceToken(u"bad.descriptor");
+    }
+    if (code < CODE_MAX) {
+        WriteParcelBody(parcel, static_cast<SmsServiceInterfaceCode>(code), fdp);
+    }
+
+    MessageParcel reply;
+    MessageOption option(MessageOption::TF_SYNC);
+    service->OnRemoteRequest(code, parcel, reply, option);
 }
 } // namespace OHOS
 
