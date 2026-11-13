@@ -55,7 +55,13 @@ constexpr uint32_t MMS_MESSAGE_TYPE_COUNT = 24;
 constexpr uint32_t CHARSET_MOD = 0x800;
 constexpr uint8_t MMS_MESSAGE_TYPE_BASE = 128;
 constexpr uint8_t WELL_KNOWN_CONTENT_TYPE_MOD = 0x55;
-constexpr uint32_t GROUP_COUNT = 6;
+constexpr uint32_t GROUP_BUFFER_AND_DECODE = 0;
+constexpr uint32_t GROUP_ENCODE_AND_CONTENT = 1;
+constexpr uint32_t GROUP_ADDRESS_AND_ATTACHMENT = 2;
+constexpr uint32_t GROUP_HEADER_AND_BODY = 3;
+constexpr uint32_t GROUP_MMS_MSG = 4;
+constexpr uint32_t GROUP_UTILITY_CODEC = 5;
+constexpr uint32_t GROUP_COUNT = GROUP_UTILITY_CODEC + 1;
 
 std::string MakeString(FuzzedDataProvider &fdp)
 {
@@ -501,23 +507,23 @@ void DoMmsCodecFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    switch (fdp.ConsumeIntegralInRange<uint32_t>(0, GROUP_COUNT - 1)) {
-        case 0:
+    switch (fdp.ConsumeIntegralInRange<uint32_t>(GROUP_BUFFER_AND_DECODE, GROUP_COUNT - 1)) {
+        case GROUP_BUFFER_AND_DECODE:
             FuzzMmsBuffer(fdp);
             FuzzMmsDecodeBuffer(fdp);
             break;
-        case 1:
+        case GROUP_ENCODE_AND_CONTENT:
             FuzzMmsEncodeBuffer(fdp);
             FuzzContentType(fdp);
             break;
-        case 2:
+        case GROUP_ADDRESS_AND_ATTACHMENT:
             FuzzAddressAndEncodeString(fdp);
             FuzzAttachmentAndBodyPart(fdp);
             break;
-        case 3:
+        case GROUP_HEADER_AND_BODY:
             FuzzHeaderAndBody(fdp);
             break;
-        case 4:
+        case GROUP_MMS_MSG:
             FuzzMmsMsg(fdp);
             break;
         default:

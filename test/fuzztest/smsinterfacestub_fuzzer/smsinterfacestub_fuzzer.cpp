@@ -27,18 +27,15 @@
 #include <vector>
 
 #include "addsmstoken_fuzzer.h"
+#include "core_manager_inner.h"
 #include "delivery_short_message_callback_stub.h"
 #include "i_sms_service_interface.h"
 #include "message_option.h"
 #include "message_parcel.h"
 #include "send_short_message_callback_stub.h"
 #include "sms_interface_stub.h"
-#include "sms_service_ipc_interface_code.h"
-
-#define private public
-#include "core_manager_inner.h"
 #include "sms_service.h"
-#undef private
+#include "sms_service_ipc_interface_code.h"
 
 using namespace OHOS::Telephony;
 namespace OHOS {
@@ -54,6 +51,7 @@ constexpr int32_t MAX_CB_LIST_SIZE = 16;
 constexpr uint32_t MAX_SIM_STATUS = 8;
 constexpr uint32_t UNKNOWN_CODE_OFFSET = 1000;
 constexpr uint32_t CODE_MAX = static_cast<uint32_t>(SmsServiceInterfaceCode::GET_SMS_SHORT_CODE_TYPE) + 1;
+constexpr uint8_t SPECIFICATION_SELECTOR_RANGE = 2;
 constexpr int32_t INIT_WAIT_TIMES = 200;
 constexpr auto INIT_WAIT_INTERVAL = std::chrono::milliseconds(1);
 
@@ -128,7 +126,7 @@ std::string MakeBundleName(FuzzedDataProvider &fdp)
 
 std::string MakeSpecification(FuzzedDataProvider &fdp)
 {
-    uint8_t type = fdp.ConsumeIntegralInRange<uint8_t>(0, 2);
+    uint8_t type = fdp.ConsumeIntegralInRange<uint8_t>(0, SPECIFICATION_SELECTOR_RANGE);
     if (type == 0) {
         return std::string("3gpp");
     }

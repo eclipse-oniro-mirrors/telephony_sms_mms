@@ -51,7 +51,13 @@ constexpr uint32_t RESULT_ERROR_MOD = 4;
 constexpr int32_t MAX_SIM_MESSAGE_COUNT = 2;
 constexpr int32_t MAX_SPLIT_COUNT = 4;
 constexpr int32_t MAX_SEGMENT_COUNT = 8;
-constexpr uint32_t GROUP_COUNT = 6;
+constexpr uint32_t GROUP_TEXT_MESSAGE = 0;
+constexpr uint32_t GROUP_DATA_MESSAGE = 1;
+constexpr uint32_t GROUP_SIM_MESSAGE = 2;
+constexpr uint32_t GROUP_CONFIG = 3;
+constexpr uint32_t GROUP_QUERY = 4;
+constexpr uint32_t GROUP_MMS_CODEC = 5;
+constexpr uint32_t GROUP_COUNT = GROUP_MMS_CODEC + 1;
 constexpr int32_t REMOTE_CALL_SUCCESS = 0;
 constexpr int32_t REMOTE_CALL_FAILURE = -1;
 constexpr int32_t REPLY_RESULT_SUCCESS = 0;
@@ -358,20 +364,20 @@ void DoSmsServiceProxyFuzzTest(const uint8_t *data, size_t size)
     SmsServiceProxy proxy(remote);
     int32_t slotId = MakeSlotId(fdp);
 
-    switch (fdp.ConsumeIntegralInRange<uint32_t>(0, GROUP_COUNT - 1)) {
-        case 0:
+    switch (fdp.ConsumeIntegralInRange<uint32_t>(GROUP_TEXT_MESSAGE, GROUP_COUNT - 1)) {
+        case GROUP_TEXT_MESSAGE:
             FuzzTextMessage(proxy, fdp, slotId);
             break;
-        case 1:
+        case GROUP_DATA_MESSAGE:
             FuzzDataMessage(proxy, fdp, slotId);
             break;
-        case 2:
+        case GROUP_SIM_MESSAGE:
             FuzzSimMessage(proxy, fdp, slotId);
             break;
-        case 3:
+        case GROUP_CONFIG:
             FuzzConfig(proxy, fdp, slotId);
             break;
-        case 4:
+        case GROUP_QUERY:
             FuzzQuery(proxy, fdp, slotId);
             break;
         default:

@@ -32,12 +32,9 @@
 #include "send_short_message_callback_stub.h"
 #include "short_message.h"
 #include "sms_service_ipc_interface_code.h"
+#include "sms_service_manager_client.h"
 #include "sms_service_proxy.h"
 #include "singleton.h"
-
-#define private public
-#include "sms_service_manager_client.h"
-#undef private
 
 using namespace OHOS::Telephony;
 namespace OHOS {
@@ -55,7 +52,11 @@ constexpr uint32_t CHARSET_BASE = 0x3A;
 constexpr uint32_t RESULT_ERROR_MOD = 4;
 constexpr int32_t MAX_LIST_COUNT = 4;
 constexpr int32_t MAX_SEGMENT_COUNT = 8;
-constexpr uint32_t GROUP_COUNT = 4;
+constexpr uint32_t GROUP_SEND_MESSAGE = 0;
+constexpr uint32_t GROUP_SIM = 1;
+constexpr uint32_t GROUP_QUERY = 2;
+constexpr uint32_t GROUP_CODEC = 3;
+constexpr uint32_t GROUP_COUNT = GROUP_CODEC + 1;
 constexpr int32_t REPLY_RESULT_SUCCESS = 0;
 constexpr int32_t REPLY_RESULT_FAILURE = -1;
 constexpr int32_t REMOTE_CALL_SUCCESS = 0;
@@ -326,15 +327,15 @@ void DoSmsServiceManagerClientFuzzTest(const uint8_t *data, size_t size)
         return;
     }
 
-    switch (fdp.ConsumeIntegralInRange<uint32_t>(0, GROUP_COUNT - 1)) {
-        case 0:
+    switch (fdp.ConsumeIntegralInRange<uint32_t>(GROUP_SEND_MESSAGE, GROUP_COUNT - 1)) {
+        case GROUP_SEND_MESSAGE:
             FuzzClientSendMessage(client, fdp);
             break;
-        case 1:
+        case GROUP_SIM:
             FuzzClientSimMessage(client, fdp);
             FuzzClientSimConfig(client, fdp);
             break;
-        case 2:
+        case GROUP_QUERY:
             FuzzClientQuery(client, fdp);
             FuzzClientStatusQuery(client, fdp);
             break;

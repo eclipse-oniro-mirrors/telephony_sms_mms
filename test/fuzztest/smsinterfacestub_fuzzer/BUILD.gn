@@ -67,6 +67,7 @@ ohos_fuzztest("SmsInterfaceStubFuzzTest") {
   ]
 
   cflags = [
+    "-Dprivate=public",
     "-g",
     "-O0",
     "-Wno-unused-variable",

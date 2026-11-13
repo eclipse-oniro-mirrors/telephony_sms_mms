@@ -40,7 +40,9 @@ constexpr int32_t MAX_SLOT_ID = 2;
 constexpr int32_t INVALID_SLOT_ID = -1;
 constexpr uint32_t SMS_SEND_RESULT_MOD = 4;
 constexpr uint32_t IMS_CONFIG_MOD = 2;
-constexpr uint32_t GROUP_COUNT = 2;
+constexpr uint32_t GROUP_SMS_CALLBACK = 0;
+constexpr uint32_t GROUP_IMS_CALLBACK = 1;
+constexpr uint32_t GROUP_COUNT = GROUP_IMS_CALLBACK + 1;
 
 std::u16string MakeText(FuzzedDataProvider &fdp)
 {
@@ -68,7 +70,7 @@ std::string MakeString(FuzzedDataProvider &fdp)
 
 class CallbackRemote final : public IRemoteObject {
 public:
-    CallbackRemote(FuzzedDataProvider &fdp) : IRemoteObject(u""), fdp_(fdp) {}
+    explicit CallbackRemote(FuzzedDataProvider &fdp) : IRemoteObject(u""), fdp_(fdp) {}
 
     int32_t GetObjectRefCount() override
     {
@@ -147,7 +149,7 @@ void DoCallbackProxyFuzzTest(const uint8_t *data, size_t size)
 
     FuzzedDataProvider fdp(data, size);
     sptr<IRemoteObject> remote = new CallbackRemote(fdp);
-    if (fdp.ConsumeIntegralInRange<uint32_t>(0, GROUP_COUNT - 1) == 0) {
+    if (fdp.ConsumeIntegralInRange<uint32_t>(GROUP_SMS_CALLBACK, GROUP_COUNT - 1) == GROUP_SMS_CALLBACK) {
         FuzzSmsCallbackProxy(remote, fdp);
         return;
     }

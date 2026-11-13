@@ -42,7 +42,11 @@ constexpr uint8_t ASCII_PRINTABLE_RANGE = 0x5F;
 constexpr int32_t MAX_SLOT_ID = 2;
 constexpr int32_t INVALID_SLOT_ID = -1;
 constexpr uint32_t UNKNOWN_CODE_OFFSET = 100;
-constexpr uint32_t STUB_FAMILY_COUNT = 3;
+constexpr uint32_t STUB_SEND_CALLBACK = 0;
+constexpr uint32_t STUB_DELIVERY_CALLBACK = 1;
+constexpr uint32_t STUB_IMS_CALLBACK = 2;
+constexpr uint32_t STUB_FAMILY_COUNT = STUB_IMS_CALLBACK + 1;
+constexpr uint32_t CODE_SELECTOR_RANGE = 2;
 
 std::u16string MakeText(FuzzedDataProvider &fdp)
 {
@@ -75,7 +79,7 @@ int32_t MakeSlotId(FuzzedDataProvider &fdp)
 
 uint32_t MakeCode(uint32_t validCode, FuzzedDataProvider &fdp)
 {
-    uint32_t selector = fdp.ConsumeIntegralInRange<uint32_t>(0, 2);
+    uint32_t selector = fdp.ConsumeIntegralInRange<uint32_t>(0, CODE_SELECTOR_RANGE);
     if (selector == 0) {
         return validCode;
     }
@@ -191,11 +195,11 @@ void DoCallbackIpcFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    switch (fdp.ConsumeIntegralInRange<uint32_t>(0, STUB_FAMILY_COUNT - 1)) {
-        case 0:
+    switch (fdp.ConsumeIntegralInRange<uint32_t>(STUB_SEND_CALLBACK, STUB_FAMILY_COUNT - 1)) {
+        case STUB_SEND_CALLBACK:
             FuzzSendCallback(fdp);
             break;
-        case 1:
+        case STUB_DELIVERY_CALLBACK:
             FuzzDeliveryCallback(fdp);
             break;
         default:

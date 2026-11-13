@@ -58,6 +58,7 @@ ohos_fuzztest("SmsServiceManagerClientFuzzTest") {
   ]
 
   cflags = [
+    "-Dprivate=public",
     "-g",
     "-O0",
     "-Wno-unused-variable",

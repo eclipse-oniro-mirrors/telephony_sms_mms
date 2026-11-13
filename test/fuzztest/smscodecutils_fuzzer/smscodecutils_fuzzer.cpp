@@ -50,7 +50,10 @@ constexpr uint32_t DATA_CODING_SCHEME_MOD = static_cast<uint32_t>(DATA_CODING_AS
 constexpr uint32_t LANG_ID_MOD = 32;
 constexpr size_t BOOL_MOD = 2;
 constexpr size_t LOCKING_SHIFT_MOD = 3;
-constexpr uint32_t GROUP_COUNT = 3;
+constexpr uint32_t GROUP_STRING_UTILS = 0;
+constexpr uint32_t GROUP_SMS_COMMON_UTILS = 1;
+constexpr uint32_t GROUP_TEXT_CODER = 2;
+constexpr uint32_t GROUP_COUNT = GROUP_TEXT_CODER + 1;
 static_assert(DATA_CODING_SCHEME_MOD > 0, "Data coding scheme modulo must not be zero");
 
 std::string MakeString(FuzzedDataProvider &fdp)
@@ -192,11 +195,11 @@ void DoSmsCodecUtilsFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    switch (fdp.ConsumeIntegralInRange<uint32_t>(0, GROUP_COUNT - 1)) {
-        case 0:
+    switch (fdp.ConsumeIntegralInRange<uint32_t>(GROUP_STRING_UTILS, GROUP_COUNT - 1)) {
+        case GROUP_STRING_UTILS:
             FuzzStringUtils(fdp);
             break;
-        case 1:
+        case GROUP_SMS_COMMON_UTILS:
             FuzzSmsCommonUtils(fdp);
             break;
         default:
