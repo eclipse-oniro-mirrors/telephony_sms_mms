@@ -62,7 +62,6 @@ static void RunMmsAttachmentFuzz(const uint8_t *data, size_t size)
             decoded.DecodePart(*decodeBuffer, SmsMmsFuzz::MIN_BUFFER_SIZE);
         }
     }
-
 }
 } // namespace Telephony
 } // namespace OHOS

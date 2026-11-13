@@ -54,7 +54,6 @@ static void RunMmsBodyPartFuzz(const uint8_t *data, size_t size)
     auto body = bodyPart.ReadBodyPartBuffer(len);
     MmsBodyPart copy(bodyPart);
     MmsBodyPart assigned = copy;
-
 }
 } // namespace Telephony
 } // namespace OHOS

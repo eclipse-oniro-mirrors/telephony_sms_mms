@@ -91,7 +91,6 @@ static void RunMmsAddressFuzz(const uint8_t *data, size_t size)
         address.GetAddressString();
         address.GetAddressCharset();
         address.GetAddressType();
-
     }
 }
 } // namespace Telephony
