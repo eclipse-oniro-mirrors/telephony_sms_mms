@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -39,30 +39,34 @@ static void QueryMsg(MmsMsg &msg)
     std::vector<MmsAttachment> attachments;
     msg.GetAllAttachment(attachments);
     msg.GetHeader();
-    attachments.clear();
-    toAddrs.clear();
 }
 
 static void RunMmsMsgFuzz(const uint8_t *data, size_t size)
 {
-    SmsMmsFuzz::DataCursor cursor(data, size);
+    FuzzedDataProvider rawProvider(data, size);
+    auto raw = rawProvider.ConsumeRemainingBytes<uint8_t>();
+    MmsMsg rawMessage;
+    if (rawMessage.DecodeMsg(SmsMmsFuzz::MakeCharBuffer(raw), static_cast<uint32_t>(raw.size()))) {
+        QueryMsg(rawMessage);
+    }
+    FuzzedDataProvider cursor(data, size);
     uint8_t messageType = SmsMmsFuzz::PickMessageType(cursor);
     MmsMsg msg;
     SmsMmsFuzz::FillMmsMsg(msg, cursor, messageType);
     msg.SetMmsVersion(static_cast<uint16_t>(
-        cursor.ConsumeUint32(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_MMS_VERSION_VALUE)));
+        cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_MMS_VERSION_VALUE)));
     msg.SetMmsMessageType(messageType);
-    msg.SetMmsTransactionId(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "tx"));
-    msg.SetMmsDate(static_cast<int64_t>(cursor.ConsumeUint64()));
+    msg.SetMmsTransactionId(cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE));
+    msg.SetMmsDate(static_cast<int64_t>(cursor.ConsumeIntegral<uint64_t>()));
     MmsAddress from = SmsMmsFuzz::MakeAddress(cursor);
     msg.SetMmsFrom(from);
     std::vector<MmsAddress> toAddrs = { SmsMmsFuzz::MakeAddress(cursor), SmsMmsFuzz::MakeAddress(cursor) };
     msg.SetMmsTo(toAddrs);
-    std::string text = SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "header-text");
+    std::string text = cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE);
     msg.SetHeaderStringValue(MMS_CONTENT_LOCATION, text);
     msg.SetHeaderOctetValue(MMS_CONTENT_CLASS, static_cast<uint8_t>(MmsContentClass::MMS_TEXT));
     msg.SetHeaderIntegerValue(MMS_MESSAGE_COUNT, static_cast<int32_t>(
-        cursor.ConsumeUint32(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_HEADER_VALUE)));
+        cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_HEADER_VALUE)));
     QueryMsg(msg);
 
     uint32_t outLen = SmsMmsFuzz::EMPTY_SIZE;
@@ -73,8 +77,6 @@ static void RunMmsMsgFuzz(const uint8_t *data, size_t size)
             QueryMsg(decoded);
         }
     }
-    toAddrs.clear();
-    text.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

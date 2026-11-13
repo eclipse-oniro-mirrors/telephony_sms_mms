@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,22 +17,12 @@
 
 #include "mms_fuzzer_utils.h"
 
-#define MMS_VALUE_LENGTH_MARK_VALUE 0x1f
-#define MMS_UINTVAR_CONTINUE_BYTE_VALUE 0x81
-#define MMS_SAMPLE_ONE_BYTE_VALUE 0x01
-#define MMS_SAMPLE_SHORT_INTEGER_VALUE 0x82
-
 namespace OHOS {
 namespace Telephony {
-constexpr uint8_t VALUE_LENGTH_MARK = MMS_VALUE_LENGTH_MARK_VALUE;
-constexpr uint8_t UINTVAR_CONTINUE_BYTE = MMS_UINTVAR_CONTINUE_BYTE_VALUE;
-constexpr uint8_t SAMPLE_ONE_BYTE = MMS_SAMPLE_ONE_BYTE_VALUE;
-constexpr uint8_t SAMPLE_SHORT_INTEGER = MMS_SAMPLE_SHORT_INTEGER_VALUE;
-
-#undef MMS_VALUE_LENGTH_MARK_VALUE
-#undef MMS_UINTVAR_CONTINUE_BYTE_VALUE
-#undef MMS_SAMPLE_ONE_BYTE_VALUE
-#undef MMS_SAMPLE_SHORT_INTEGER_VALUE
+constexpr uint8_t VALUE_LENGTH_MARK = 0x1f;
+constexpr uint8_t UINTVAR_CONTINUE_BYTE = 0x81;
+constexpr uint8_t SAMPLE_ONE_BYTE = 0x01;
+constexpr uint8_t SAMPLE_SHORT_INTEGER = 0x82;
 
 static void ExerciseDecodeBuffer(const std::vector<uint8_t> &bytes)
 {
@@ -63,13 +53,14 @@ static void ExerciseDecodeBuffer(const std::vector<uint8_t> &bytes)
     SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeInteger(integer);
     SmsMmsFuzz::MakeDecodeBuffer(bytes)->IncreasePointer(SmsMmsFuzz::EMPTY_SIZE);
     SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecreasePointer(SmsMmsFuzz::EMPTY_SIZE);
-    text.clear();
 }
 
 static void RunMmsDecodeBufferFuzz(const uint8_t *data, size_t size)
 {
-    SmsMmsFuzz::DataCursor cursor(data, size);
-    ExerciseDecodeBuffer(cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE));
+    FuzzedDataProvider rawProvider(data, size);
+    ExerciseDecodeBuffer(rawProvider.ConsumeRemainingBytes<uint8_t>());
+    FuzzedDataProvider cursor(data, size);
+    ExerciseDecodeBuffer(cursor.ConsumeBytes<uint8_t>(SmsMmsFuzz::MAX_BINARY_SIZE));
     ExerciseDecodeBuffer({VALUE_LENGTH_MARK, UINTVAR_CONTINUE_BYTE, SAMPLE_ONE_BYTE, 't', 'e', 'x', 't',
         SmsMmsFuzz::ZERO_BYTE});
     ExerciseDecodeBuffer({SmsMmsFuzz::SHORT_INTEGER_MASK, 'q', 'u', 'o', 't', 'e', SmsMmsFuzz::ZERO_BYTE});

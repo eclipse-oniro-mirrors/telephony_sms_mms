@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,58 +17,45 @@
 
 #include "mms_fuzzer_utils.h"
 
-#define MMS_TOKEN_TEXT_MAX_SIZE_VALUE 24
-#define MMS_MAX_UINTVAR_VALUE_VALUE 0x1fffff
-#define MMS_MAX_SHORT_LENGTH_VALUE_VALUE 40
-#define MMS_MAX_VALUE_LENGTH_VALUE_VALUE 256
-
 namespace OHOS {
 namespace Telephony {
-constexpr uint32_t TOKEN_TEXT_MAX_SIZE = MMS_TOKEN_TEXT_MAX_SIZE_VALUE;
-constexpr uint32_t MAX_UINTVAR_VALUE = MMS_MAX_UINTVAR_VALUE_VALUE;
-constexpr uint32_t MAX_SHORT_LENGTH_VALUE = MMS_MAX_SHORT_LENGTH_VALUE_VALUE;
-constexpr uint32_t MAX_VALUE_LENGTH_VALUE = MMS_MAX_VALUE_LENGTH_VALUE_VALUE;
+constexpr uint32_t TOKEN_TEXT_MAX_SIZE = 24;
+constexpr uint32_t MAX_UINTVAR_VALUE = 0x1fffff;
+constexpr uint32_t MAX_SHORT_LENGTH_VALUE = 40;
+constexpr uint32_t MAX_VALUE_LENGTH_VALUE = 256;
 
-#undef MMS_TOKEN_TEXT_MAX_SIZE_VALUE
-#undef MMS_MAX_UINTVAR_VALUE_VALUE
-#undef MMS_MAX_SHORT_LENGTH_VALUE_VALUE
-#undef MMS_MAX_VALUE_LENGTH_VALUE_VALUE
-
-static std::string MakeTokenText(SmsMmsFuzz::DataCursor &cursor)
+static std::string MakeTokenText(FuzzedDataProvider &cursor)
 {
-    std::string token = SmsMmsFuzz::NonEmpty(cursor.ConsumeText(TOKEN_TEXT_MAX_SIZE), "token");
-    for (char &ch : token) {
-        if (!MmsDecodeBuffer::CharIsToken(static_cast<uint8_t>(ch))) {
-            ch = 'A';
-        }
-    }
+    std::string token = cursor.ConsumeRandomLengthString(TOKEN_TEXT_MAX_SIZE);
     return token;
 }
 
 static void RunMmsEncodeBufferFuzz(const uint8_t *data, size_t size)
 {
-    SmsMmsFuzz::DataCursor cursor(data, size);
+    FuzzedDataProvider cursor(data, size);
     MmsEncodeBuffer encodeBuffer;
-    encodeBuffer.WriteByte(cursor.ConsumeByte());
-    encodeBuffer.EncodeUintvar(cursor.ConsumeUint32(SmsMmsFuzz::EMPTY_SIZE, MAX_UINTVAR_VALUE));
+    encodeBuffer.WriteByte(cursor.ConsumeIntegral<uint8_t>());
+    encodeBuffer.EncodeUintvar(cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE, MAX_UINTVAR_VALUE));
     encodeBuffer.EncodeShortLength(static_cast<uint8_t>(
-        cursor.ConsumeUint32(SmsMmsFuzz::EMPTY_SIZE, MAX_SHORT_LENGTH_VALUE)));
-    encodeBuffer.EncodeValueLength(cursor.ConsumeUint32(SmsMmsFuzz::EMPTY_SIZE, MAX_VALUE_LENGTH_VALUE));
-    encodeBuffer.EncodeOctet(cursor.ConsumeByte());
-    encodeBuffer.EncodeShortInteger(cursor.ConsumeByte());
-    encodeBuffer.EncodeInteger(cursor.ConsumeUint32(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_HEADER_VALUE));
-    encodeBuffer.EncodeLongInteger(cursor.ConsumeUint64());
-    encodeBuffer.EncodeText(cursor.ConsumeText(SmsMmsFuzz::MAX_TEXT_SIZE));
-    encodeBuffer.EncodeQuotedText(cursor.ConsumeText(SmsMmsFuzz::MAX_TEXT_SIZE));
+        cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE, MAX_SHORT_LENGTH_VALUE)));
+    encodeBuffer.EncodeValueLength(cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE,
+        MAX_VALUE_LENGTH_VALUE));
+    encodeBuffer.EncodeOctet(cursor.ConsumeIntegral<uint8_t>());
+    encodeBuffer.EncodeShortInteger(cursor.ConsumeIntegral<uint8_t>());
+    encodeBuffer.EncodeInteger(cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE,
+        SmsMmsFuzz::MAX_HEADER_VALUE));
+    encodeBuffer.EncodeLongInteger(cursor.ConsumeIntegral<uint64_t>());
+    encodeBuffer.EncodeText(cursor.ConsumeRandomLengthString(SmsMmsFuzz::MAX_TEXT_SIZE));
+    encodeBuffer.EncodeQuotedText(cursor.ConsumeRandomLengthString(SmsMmsFuzz::MAX_TEXT_SIZE));
+    encodeBuffer.EncodeTokenText("token");
     encodeBuffer.EncodeTokenText(MakeTokenText(cursor));
 
     MmsEncodeBuffer nested;
     nested.EncodeText("nested");
     encodeBuffer.WriteBuffer(nested);
-    std::vector<uint8_t> bytes = cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE);
+    std::vector<uint8_t> bytes = cursor.ConsumeBytes<uint8_t>(SmsMmsFuzz::MAX_BINARY_SIZE);
     encodeBuffer.WriteBuffer(SmsMmsFuzz::MakeCharBuffer(bytes), static_cast<uint32_t>(bytes.size()));
     encodeBuffer.ReadDataBuffer(SmsMmsFuzz::EMPTY_SIZE, encodeBuffer.GetCurPosition());
-    bytes.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

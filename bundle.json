@@ -99,19 +99,7 @@
             ],
             "test": [
                 "//base/telephony/sms_mms/test:unittest",
-                "//base/telephony/sms_mms/test/fuzztest:fuzztest",
-                "//base/telephony/sms_mms/test/fuzztest/mmsaddress_fuzzer:fuzztest",
-                "//base/telephony/sms_mms/test/fuzztest/mmsattachment_fuzzer:fuzztest",
-                "//base/telephony/sms_mms/test/fuzztest/mmscontentparam_fuzzer:fuzztest",
-                "//base/telephony/sms_mms/test/fuzztest/mmscontenttype_fuzzer:fuzztest",
-                "//base/telephony/sms_mms/test/fuzztest/mmsdecodebuffer_fuzzer:fuzztest",
-                "//base/telephony/sms_mms/test/fuzztest/mmsencodebuffer_fuzzer:fuzztest",
-                "//base/telephony/sms_mms/test/fuzztest/mmsbodypartheader_fuzzer:fuzztest",
-                "//base/telephony/sms_mms/test/fuzztest/mmsbodypart_fuzzer:fuzztest",
-                "//base/telephony/sms_mms/test/fuzztest/mmsbody_fuzzer:fuzztest",
-                "//base/telephony/sms_mms/test/fuzztest/mmsheader_fuzzer:fuzztest",
-                "//base/telephony/sms_mms/test/fuzztest/mmsmsg_fuzzer:fuzztest",
-                "//base/telephony/sms_mms/test/fuzztest/mmscodecutils_fuzzer:fuzztest"
+                "//base/telephony/sms_mms/test/fuzztest:fuzztest"
             ]
         }
     }

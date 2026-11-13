@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -33,10 +33,12 @@ static void DecodeHeaderBytes(const std::vector<uint8_t> &bytes)
 
 static void RunMmsBodyPartHeaderFuzz(const uint8_t *data, size_t size)
 {
-    SmsMmsFuzz::DataCursor cursor(data, size);
+    FuzzedDataProvider rawProvider(data, size);
+    DecodeHeaderBytes(rawProvider.ConsumeRemainingBytes<uint8_t>());
+    FuzzedDataProvider cursor(data, size);
     MmsBodyPartHeader header;
-    header.SetContentId(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "<cid>"));
-    header.SetContentLocation(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "part.txt"));
+    header.SetContentId(cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE));
+    header.SetContentLocation(cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE));
     header.SetContentDisposition(SmsMmsFuzz::PickDisposition(cursor));
     header.SetContentTransferEncoding(SmsMmsFuzz::PickTransferEncoding(cursor));
     std::string value;
@@ -58,11 +60,9 @@ static void RunMmsBodyPartHeaderFuzz(const uint8_t *data, size_t size)
         '"', 'f', 'u', 'z', 'z', SmsMmsFuzz::ZERO_BYTE,
     };
     DecodeHeaderBytes(synthetic);
-    DecodeHeaderBytes(cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE));
+    DecodeHeaderBytes(cursor.ConsumeBytes<uint8_t>(SmsMmsFuzz::MAX_BINARY_SIZE));
     MmsBodyPartHeader copy(header);
     MmsBodyPartHeader assigned = copy;
-    synthetic.clear();
-    value.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

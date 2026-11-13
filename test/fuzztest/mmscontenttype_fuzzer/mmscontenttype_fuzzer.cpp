@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -29,12 +29,14 @@ static void DecodeContentTypeBytes(const std::vector<uint8_t> &bytes)
 
 static void RunMmsContentTypeFuzz(const uint8_t *data, size_t size)
 {
-    SmsMmsFuzz::DataCursor cursor(data, size);
+    FuzzedDataProvider rawProvider(data, size);
+    DecodeContentTypeBytes(rawProvider.ConsumeRemainingBytes<uint8_t>());
+    FuzzedDataProvider cursor(data, size);
     MmsContentType contentType = SmsMmsFuzz::MakeContentType(cursor);
     std::string contentTypeText;
     contentType.GetContentType(contentTypeText);
     MmsContentType::GetContentTypeFromString(contentTypeText);
-    MmsContentType::GetContentTypeFromInt(cursor.ConsumeByte());
+    MmsContentType::GetContentTypeFromInt(cursor.ConsumeIntegral<uint8_t>());
 
     MmsEncodeBuffer encodeBuffer;
     contentType.EncodeTextField(encodeBuffer);
@@ -48,13 +50,10 @@ static void RunMmsContentTypeFuzz(const uint8_t *data, size_t size)
     }
 
     std::vector<uint8_t> shortForm = { static_cast<uint8_t>(SmsMmsFuzz::SHORT_INTEGER_MARK |
-        (cursor.ConsumeByte() & SmsMmsFuzz::SHORT_INTEGER_MASK)) };
+        (cursor.ConsumeIntegral<uint8_t>() & SmsMmsFuzz::SHORT_INTEGER_MASK)) };
     DecodeContentTypeBytes(shortForm);
-    std::vector<uint8_t> raw = cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE);
+    std::vector<uint8_t> raw = cursor.ConsumeBytes<uint8_t>(SmsMmsFuzz::MAX_BINARY_SIZE);
     DecodeContentTypeBytes(raw);
-    raw.clear();
-    shortForm.clear();
-    contentTypeText.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

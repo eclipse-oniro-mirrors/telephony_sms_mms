@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -20,30 +20,16 @@
 #include <array>
 #include <string>
 
-#define MMS_CONTENT_PARAM_FIELD_COUNT_VALUE 10
-#define MMS_CONTENT_PARAM_VALUE_CLEAR_INTERVAL_VALUE 3
-#define MMS_CONTENT_PARAM_OPERATION_KIND_COUNT_VALUE 4
-#define MMS_CONTENT_PARAM_SET_FILE_NAME_VALUE 0
-#define MMS_CONTENT_PARAM_SET_START_VALUE 1
-#define MMS_CONTENT_PARAM_SET_TYPE_VALUE 2
-
 namespace OHOS {
 namespace Telephony {
-constexpr size_t CONTENT_PARAM_FIELD_COUNT = MMS_CONTENT_PARAM_FIELD_COUNT_VALUE;
-constexpr uint32_t CONTENT_PARAM_VALUE_CLEAR_INTERVAL = MMS_CONTENT_PARAM_VALUE_CLEAR_INTERVAL_VALUE;
-constexpr uint32_t CONTENT_PARAM_OPERATION_KIND_COUNT = MMS_CONTENT_PARAM_OPERATION_KIND_COUNT_VALUE;
-constexpr uint32_t CONTENT_PARAM_SET_FILE_NAME = MMS_CONTENT_PARAM_SET_FILE_NAME_VALUE;
-constexpr uint32_t CONTENT_PARAM_SET_START = MMS_CONTENT_PARAM_SET_START_VALUE;
-constexpr uint32_t CONTENT_PARAM_SET_TYPE = MMS_CONTENT_PARAM_SET_TYPE_VALUE;
+constexpr size_t CONTENT_PARAM_FIELD_COUNT = 10;
+constexpr uint32_t CONTENT_PARAM_VALUE_CLEAR_INTERVAL = 3;
+constexpr uint32_t CONTENT_PARAM_OPERATION_KIND_COUNT = 4;
+constexpr uint32_t CONTENT_PARAM_SET_FILE_NAME = 0;
+constexpr uint32_t CONTENT_PARAM_SET_START = 1;
+constexpr uint32_t CONTENT_PARAM_SET_TYPE = 2;
 
-#undef MMS_CONTENT_PARAM_FIELD_COUNT_VALUE
-#undef MMS_CONTENT_PARAM_VALUE_CLEAR_INTERVAL_VALUE
-#undef MMS_CONTENT_PARAM_OPERATION_KIND_COUNT_VALUE
-#undef MMS_CONTENT_PARAM_SET_FILE_NAME_VALUE
-#undef MMS_CONTENT_PARAM_SET_START_VALUE
-#undef MMS_CONTENT_PARAM_SET_TYPE_VALUE
-
-static uint8_t PickContentParamField(SmsMmsFuzz::DataCursor &cursor)
+static uint8_t PickContentParamField(FuzzedDataProvider &cursor)
 {
     static constexpr std::array<uint8_t, CONTENT_PARAM_FIELD_COUNT> PARAM_FIELDS = {
         static_cast<uint8_t>(ContentParam::CT_P_CHARSET),
@@ -57,13 +43,14 @@ static uint8_t PickContentParamField(SmsMmsFuzz::DataCursor &cursor)
         static_cast<uint8_t>(ContentParam::CT_P_START_VALUE),
         SmsMmsFuzz::INVALID_FIELD_ID,
     };
-    return PARAM_FIELDS[cursor.ConsumeUint32(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::LastIndex(PARAM_FIELDS.size()))];
+    return PARAM_FIELDS[cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE,
+        SmsMmsFuzz::LastIndex(PARAM_FIELDS.size()))];
 }
 
 static void RunMmsContentParamFuzz(const uint8_t *data, size_t size)
 {
-    SmsMmsFuzz::DataCursor cursor(data, size);
-    uint8_t opcode = cursor.ConsumeByte();
+    FuzzedDataProvider cursor(data, size);
+    uint8_t opcode = cursor.ConsumeIntegral<uint8_t>();
     bool useKnownField = cursor.ConsumeBool();
     uint32_t charset = SmsMmsFuzz::PickCharset(cursor);
     std::string type = SmsMmsFuzz::PickContentType(cursor);
@@ -72,13 +59,13 @@ static void RunMmsContentParamFuzz(const uint8_t *data, size_t size)
     SmsMmsFuzz::FillContentParam(param, cursor);
     param.SetCharSet(charset);
     param.SetType(type);
-    param.SetFileName(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "name.txt"));
-    param.SetStart(SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "<start>"));
+    param.SetFileName(cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE));
+    param.SetStart(cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE));
 
-    uint32_t count = cursor.ConsumeUint32(SmsMmsFuzz::MIN_BUFFER_SIZE, SmsMmsFuzz::MAX_PART_COUNT);
+    uint32_t count = cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::MIN_BUFFER_SIZE, SmsMmsFuzz::MAX_PART_COUNT);
     for (uint32_t i = SmsMmsFuzz::EMPTY_SIZE; i < count; ++i) {
-        uint8_t field = useKnownField ? PickContentParamField(cursor) : cursor.ConsumeByte();
-        std::string value = SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "value");
+        uint8_t field = useKnownField ? PickContentParamField(cursor) : cursor.ConsumeIntegral<uint8_t>();
+        std::string value = cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE);
         if (((opcode + i) % CONTENT_PARAM_VALUE_CLEAR_INTERVAL) == SmsMmsFuzz::EMPTY_SIZE) {
             value.clear();
         }

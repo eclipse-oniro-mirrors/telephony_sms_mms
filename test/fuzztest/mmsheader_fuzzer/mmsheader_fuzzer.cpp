@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -32,20 +32,22 @@ static void QueryHeader(MmsHeader &header)
     header.GetHeaderContentType();
     header.GetSmilFileName(textValue);
     header.IsHaveBody();
-    addresses.clear();
-    textValue.clear();
 }
 
 static void RunMmsHeaderFuzz(const uint8_t *data, size_t size)
 {
-    SmsMmsFuzz::DataCursor cursor(data, size);
+    FuzzedDataProvider rawProvider(data, size);
+    auto fullRawBuffer = SmsMmsFuzz::MakeDecodeBuffer(rawProvider.ConsumeRemainingBytes<uint8_t>());
+    MmsHeader rawHeader;
+    rawHeader.DecodeMmsHeader(*fullRawBuffer);
+    FuzzedDataProvider cursor(data, size);
     MmsHeader header;
     uint8_t messageType = SmsMmsFuzz::PickMessageType(cursor);
     SmsMmsFuzz::FillMmsHeader(header, cursor, messageType);
-    header.SetOctetValue(MMS_PRIORITY, cursor.ConsumeByte());
+    header.SetOctetValue(MMS_PRIORITY, cursor.ConsumeIntegral<uint8_t>());
     header.SetLongValue(MMS_MESSAGE_COUNT,
-        cursor.ConsumeUint32(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_HEADER_VALUE));
-    std::string text = SmsMmsFuzz::NonEmpty(cursor.ConsumeText(SmsMmsFuzz::SHORT_TEXT_SIZE), "cancel-id");
+        cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_HEADER_VALUE));
+    std::string text = cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE);
     header.SetTextValue(MMS_CANCEL_ID, text);
     MmsAddress address = SmsMmsFuzz::MakeAddress(cursor);
     header.AddHeaderAddressValue(MMS_BCC, address);
@@ -59,9 +61,8 @@ static void RunMmsHeaderFuzz(const uint8_t *data, size_t size)
         QueryHeader(decoded);
     }
 
-    auto rawDecodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(cursor.ConsumeBytes(SmsMmsFuzz::MAX_BINARY_SIZE));
+    auto rawDecodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(cursor.ConsumeBytes<uint8_t>(SmsMmsFuzz::MAX_BINARY_SIZE));
     decoded.DecodeMmsHeader(*rawDecodeBuffer);
-    text.clear();
 }
 } // namespace Telephony
 } // namespace OHOS

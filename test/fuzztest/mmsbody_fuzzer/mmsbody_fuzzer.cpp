@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -21,9 +21,16 @@ namespace OHOS {
 namespace Telephony {
 static void RunMmsBodyFuzz(const uint8_t *data, size_t size)
 {
-    SmsMmsFuzz::DataCursor cursor(data, size);
+    FuzzedDataProvider rawProvider(data, size);
+    auto rawBuffer = SmsMmsFuzz::MakeDecodeBuffer(rawProvider.ConsumeRemainingBytes<uint8_t>());
+    MmsHeader rawHeader;
+    rawHeader.SetOctetValue(MMS_MESSAGE_TYPE, MMS_MSGTYPE_RETRIEVE_CONF);
+    rawHeader.GetHeaderContentType().SetContentType("application/vnd.wap.multipart.related");
+    MmsBody rawBody;
+    rawBody.DecodeMmsBody(*rawBuffer, rawHeader);
+    FuzzedDataProvider cursor(data, size);
     MmsBody body;
-    uint32_t count = cursor.ConsumeUint32(SmsMmsFuzz::MIN_BUFFER_SIZE, SmsMmsFuzz::MAX_PART_COUNT);
+    uint32_t count = cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::MIN_BUFFER_SIZE, SmsMmsFuzz::MAX_PART_COUNT);
     for (uint32_t i = SmsMmsFuzz::EMPTY_SIZE; i < count; ++i) {
         MmsBodyPart part = SmsMmsFuzz::MakeBodyPart(cursor, i == SmsMmsFuzz::EMPTY_SIZE && cursor.ConsumeBool());
         body.IsBodyPartExist(part);
@@ -42,7 +49,6 @@ static void RunMmsBodyFuzz(const uint8_t *data, size_t size)
         auto decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
         body.DecodeMmsBody(*decodeBuffer, header);
     }
-    parts.clear();
 }
 } // namespace Telephony
 } // namespace OHOS
