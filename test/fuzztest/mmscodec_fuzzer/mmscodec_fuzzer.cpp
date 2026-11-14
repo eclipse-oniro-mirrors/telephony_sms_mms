@@ -117,7 +117,8 @@ void FuzzMmsBuffer(FuzzedDataProvider &fdp)
     mmsBuffer.ReadDataBuffer(MakeReadLen(fdp), readLen);
     mmsBuffer.GetCurPosition();
     mmsBuffer.GetSize();
-    mmsBuffer.WriteBufferFromFile(MakeString(fdp));
+    std::string pathName = MakeString(fdp);
+    mmsBuffer.WriteBufferFromFile(pathName);
 }
 
 void FuzzMmsDecodeBuffer(FuzzedDataProvider &fdp)

@@ -125,6 +125,11 @@ public:
         return REMOTE_CALL_SUCCESS;
     }
 
+    int Dump(int fd, const std::vector<std::u16string> &args) override
+    {
+        return REMOTE_CALL_SUCCESS;
+    }
+
 private:
     int32_t MakeResult()
     {
@@ -299,6 +304,7 @@ void FuzzConfig(SmsServiceProxy &proxy, FuzzedDataProvider &fdp, int32_t slotId)
 {
     bool enable = fdp.ConsumeBool();
     uint32_t fromMsgId = fdp.ConsumeIntegral<uint32_t>();
+    uint32_t toMsgId = fdp.ConsumeIntegral<uint32_t>();
     uint8_t ranType = fdp.ConsumeIntegral<uint8_t>();
     int32_t listSize = fdp.ConsumeIntegralInRange<int32_t>(0, MAX_SPLIT_COUNT);
     std::vector<int32_t> messageIds;

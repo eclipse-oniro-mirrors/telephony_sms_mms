@@ -93,6 +93,11 @@ public:
         return fdp_.ConsumeIntegral<int32_t>();
     }
 
+    int Dump(int fd, const std::vector<std::u16string> &args) override
+    {
+        return 0;
+    }
+
 private:
     FuzzedDataProvider &fdp_;
 };

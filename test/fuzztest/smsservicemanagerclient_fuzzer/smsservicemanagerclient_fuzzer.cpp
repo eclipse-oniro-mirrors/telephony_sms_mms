@@ -110,6 +110,11 @@ public:
         return REMOTE_CALL_SUCCESS;
     }
 
+    int Dump(int fd, const std::vector<std::u16string> &args) override
+    {
+        return REMOTE_CALL_SUCCESS;
+    }
+
 private:
     void FillStringReply(MessageParcel &reply)
     {
@@ -308,7 +313,8 @@ void FuzzClientMms(SmsServiceManagerClient &client, FuzzedDataProvider &fdp)
     std::u16string mmsData = MakeText(fdp);
     std::u16string ua = MakeText(fdp);
     std::u16string uaprof = MakeText(fdp);
-    client.SendMms(slotId, mmsc, mmsData, ua, uaprof, fdp.ConsumeIntegral<int64_t>(), fdp.ConsumeBool());
+    int64_t time = fdp.ConsumeIntegral<int64_t>();
+    client.SendMms(slotId, mmsc, mmsData, ua, uaprof, time);
     client.DownloadMms(slotId, mmsc, mmsData, ua, uaprof);
 }
 } // namespace
