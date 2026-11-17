@@ -11,13 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# libtelephony_sms_taihe_native.z.so (ANI/Taihe native module) symbol
-# governance whitelist. The ANI runtime resolves the module entry by name
-# (ets_native_library_provider.cpp, ANI_Constructor) and performs cross-DSO
-# CFI checks via __cfi_check. All ohos_*_f ABI functions are registered
-# through the ani_native_function pointer table, and tobj_*/tstr_* helpers
-# are taihe-runtime duplicates, so none of them need dynamic export.
-
 {
   global:
     ANI_Constructor;
