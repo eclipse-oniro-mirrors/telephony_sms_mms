@@ -23,7 +23,7 @@
 #include <regex>
 #include <string>
 
-#include "core_service_client.h"
+#include "core_manager_inner.h"
 #include "telephony_errors.h"
 #include "telephony_log_wrapper.h"
 #include "sms_service.h"
@@ -175,7 +175,7 @@ bool SmsShortCodeMatcher::GetCountryCode(const int32_t &slotId, std::string &cou
     GetCountryCodeFromNetwork(countryCode16);
     if (countryCode16.empty()) {
         TELEPHONY_LOGI("Network country code is empty");
-        CoreServiceClient::GetInstance().GetISOCountryCodeForSim(slotId, countryCode16);
+        CoreManagerInner::GetInstance().GetISOCountryCodeForSim(slotId, countryCode16);
     }
     if (countryCode16.empty()) {
         TELEPHONY_LOGE("Both network and SIM country codes are empty, get country code failed");
@@ -192,8 +192,8 @@ bool SmsShortCodeMatcher::GetCountryCode(const int32_t &slotId, std::string &cou
 bool SmsShortCodeMatcher::GetCountryCodeFromNetwork(std::u16string &countryCode16)
 {
     int32_t primarySlotId = 0;
-    CoreServiceClient::GetInstance().GetPrimarySlotId(primarySlotId);
-    CoreServiceClient::GetInstance().GetIsoCountryCodeForNetwork(primarySlotId, countryCode16);
+    CoreManagerInner::GetInstance().GetPrimarySlotId(primarySlotId);
+    CoreManagerInner::GetInstance().GetIsoCountryCodeForNetwork(primarySlotId, countryCode16);
     if (countryCode16.empty()) {
         return false;
     }
