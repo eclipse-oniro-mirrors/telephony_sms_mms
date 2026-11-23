@@ -19,52 +19,52 @@
 
 namespace OHOS {
 namespace Telephony {
-constexpr uint8_t VALUE_LENGTH_MARK = 0x1f;
-constexpr uint8_t UINTVAR_CONTINUE_BYTE = 0x81;
-constexpr uint8_t SAMPLE_ONE_BYTE = 0x01;
-constexpr uint8_t SAMPLE_SHORT_INTEGER = 0x82;
-
 static void ExerciseDecodeBuffer(const std::vector<uint8_t> &bytes)
 {
-    uint8_t oneByte = SmsMmsFuzz::ZERO_BYTE;
-    uint32_t value = SmsMmsFuzz::EMPTY_SIZE;
-    uint32_t count = SmsMmsFuzz::EMPTY_SIZE;
-    uint64_t integer = static_cast<uint64_t>(SmsMmsFuzz::EMPTY_SIZE);
+    auto buffer = SmsMmsFuzz::MakeDecodeBuffer(bytes);
+    uint8_t oneByte = 0;
+    uint32_t value = 0;
+    uint32_t count = 0;
+    uint64_t integer = 0;
     std::string text;
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->PeekOneByte(oneByte);
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeIsShortInt();
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeIsString();
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeIsValueLength();
 
-    auto markedBuffer = SmsMmsFuzz::MakeDecodeBuffer(bytes);
-    markedBuffer->MarkPosition();
-    markedBuffer->GetOneByte(oneByte);
-    markedBuffer->UnMarkPosition();
+    buffer->PeekOneByte(oneByte);
+    buffer->DecodeIsShortInt();
+    buffer->DecodeIsString();
+    buffer->DecodeIsValueLength();
+    buffer->MarkPosition();
+    buffer->GetOneByte(oneByte);
 
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeShortLength(oneByte);
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeValueLengthReturnLen(value, count);
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeValueLength(value);
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeUintvar(value, count);
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeText(text, value);
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeTokenText(text, value);
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeQuotedText(text, value);
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeShortInteger(oneByte);
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeLongInteger(integer);
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecodeInteger(integer);
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->IncreasePointer(SmsMmsFuzz::EMPTY_SIZE);
-    SmsMmsFuzz::MakeDecodeBuffer(bytes)->DecreasePointer(SmsMmsFuzz::EMPTY_SIZE);
+    // Give each read the same starting position as a fresh buffer.
+    buffer->UnMarkPosition();
+    buffer->DecodeShortLength(oneByte);
+    buffer->UnMarkPosition();
+    buffer->DecodeValueLengthReturnLen(value, count);
+    buffer->UnMarkPosition();
+    buffer->DecodeValueLength(value);
+    buffer->UnMarkPosition();
+    buffer->DecodeUintvar(value, count);
+    buffer->UnMarkPosition();
+    buffer->DecodeText(text, value);
+    buffer->UnMarkPosition();
+    buffer->DecodeTokenText(text, value);
+    buffer->UnMarkPosition();
+    buffer->DecodeQuotedText(text, value);
+    buffer->UnMarkPosition();
+    buffer->DecodeShortInteger(oneByte);
+    buffer->UnMarkPosition();
+    buffer->DecodeLongInteger(integer);
+    buffer->UnMarkPosition();
+    buffer->DecodeInteger(integer);
+    buffer->UnMarkPosition();
+    buffer->IncreasePointer(0);
+    buffer->DecreasePointer(0);
 }
 
 static void RunMmsDecodeBufferFuzz(const uint8_t *data, size_t size)
 {
-    FuzzedDataProvider rawProvider(data, size);
-    ExerciseDecodeBuffer(rawProvider.ConsumeRemainingBytes<uint8_t>());
     FuzzedDataProvider cursor(data, size);
-    ExerciseDecodeBuffer(cursor.ConsumeBytes<uint8_t>(SmsMmsFuzz::MAX_BINARY_SIZE));
-    ExerciseDecodeBuffer({VALUE_LENGTH_MARK, UINTVAR_CONTINUE_BYTE, SAMPLE_ONE_BYTE, 't', 'e', 'x', 't',
-        SmsMmsFuzz::ZERO_BYTE});
-    ExerciseDecodeBuffer({SmsMmsFuzz::SHORT_INTEGER_MASK, 'q', 'u', 'o', 't', 'e', SmsMmsFuzz::ZERO_BYTE});
-    ExerciseDecodeBuffer({UINTVAR_CONTINUE_BYTE, SAMPLE_ONE_BYTE, SAMPLE_SHORT_INTEGER, SmsMmsFuzz::ZERO_BYTE});
+    ExerciseDecodeBuffer(cursor.ConsumeRemainingBytes<uint8_t>());
 }
 } // namespace Telephony
 } // namespace OHOS

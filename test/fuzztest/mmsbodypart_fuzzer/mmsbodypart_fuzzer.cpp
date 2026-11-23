@@ -23,7 +23,7 @@ static void DecodePartBytes(const std::vector<uint8_t> &bytes)
 {
     auto decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(bytes);
     MmsBodyPart decoded;
-    decoded.DecodePart(*decodeBuffer, SmsMmsFuzz::MIN_BUFFER_SIZE);
+    decoded.DecodePart(*decodeBuffer, SmsMmsFuzz::SINGLE_PART_ENTRY_COUNT);
 }
 
 static void RunMmsBodyPartFuzz(const uint8_t *data, size_t size)
@@ -50,7 +50,7 @@ static void RunMmsBodyPartFuzz(const uint8_t *data, size_t size)
     MmsEncodeBuffer encodeBuffer;
     bodyPart.EncodeMmsBodyPart(encodeBuffer);
     DecodePartBytes(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
-    uint32_t len = SmsMmsFuzz::EMPTY_SIZE;
+    uint32_t len = 0;
     auto body = bodyPart.ReadBodyPartBuffer(len);
     MmsBodyPart copy(bodyPart);
     MmsBodyPart assigned = copy;

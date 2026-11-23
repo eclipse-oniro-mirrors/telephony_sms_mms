@@ -35,14 +35,14 @@ static void RunMmsEncodeBufferFuzz(const uint8_t *data, size_t size)
     FuzzedDataProvider cursor(data, size);
     MmsEncodeBuffer encodeBuffer;
     encodeBuffer.WriteByte(cursor.ConsumeIntegral<uint8_t>());
-    encodeBuffer.EncodeUintvar(cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE, MAX_UINTVAR_VALUE));
+    encodeBuffer.EncodeUintvar(cursor.ConsumeIntegralInRange<uint32_t>(0, MAX_UINTVAR_VALUE));
     encodeBuffer.EncodeShortLength(static_cast<uint8_t>(
-        cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE, MAX_SHORT_LENGTH_VALUE)));
-    encodeBuffer.EncodeValueLength(cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE,
+        cursor.ConsumeIntegralInRange<uint32_t>(0, MAX_SHORT_LENGTH_VALUE)));
+    encodeBuffer.EncodeValueLength(cursor.ConsumeIntegralInRange<uint32_t>(0,
         MAX_VALUE_LENGTH_VALUE));
     encodeBuffer.EncodeOctet(cursor.ConsumeIntegral<uint8_t>());
     encodeBuffer.EncodeShortInteger(cursor.ConsumeIntegral<uint8_t>());
-    encodeBuffer.EncodeInteger(cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE,
+    encodeBuffer.EncodeInteger(cursor.ConsumeIntegralInRange<uint32_t>(0,
         SmsMmsFuzz::MAX_HEADER_VALUE));
     encodeBuffer.EncodeLongInteger(cursor.ConsumeIntegral<uint64_t>());
     encodeBuffer.EncodeText(cursor.ConsumeRandomLengthString(SmsMmsFuzz::MAX_TEXT_SIZE));
@@ -55,7 +55,7 @@ static void RunMmsEncodeBufferFuzz(const uint8_t *data, size_t size)
     encodeBuffer.WriteBuffer(nested);
     std::vector<uint8_t> bytes = cursor.ConsumeBytes<uint8_t>(SmsMmsFuzz::MAX_BINARY_SIZE);
     encodeBuffer.WriteBuffer(SmsMmsFuzz::MakeCharBuffer(bytes), static_cast<uint32_t>(bytes.size()));
-    encodeBuffer.ReadDataBuffer(SmsMmsFuzz::EMPTY_SIZE, encodeBuffer.GetCurPosition());
+    encodeBuffer.ReadDataBuffer(0, encodeBuffer.GetCurPosition());
 }
 } // namespace Telephony
 } // namespace OHOS

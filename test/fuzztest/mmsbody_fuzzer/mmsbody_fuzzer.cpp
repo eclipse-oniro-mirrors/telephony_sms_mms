@@ -30,9 +30,9 @@ static void RunMmsBodyFuzz(const uint8_t *data, size_t size)
     rawBody.DecodeMmsBody(*rawBuffer, rawHeader);
     FuzzedDataProvider cursor(data, size);
     MmsBody body;
-    uint32_t count = cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::MIN_BUFFER_SIZE, SmsMmsFuzz::MAX_PART_COUNT);
-    for (uint32_t i = SmsMmsFuzz::EMPTY_SIZE; i < count; ++i) {
-        MmsBodyPart part = SmsMmsFuzz::MakeBodyPart(cursor, i == SmsMmsFuzz::EMPTY_SIZE && cursor.ConsumeBool());
+    uint32_t count = cursor.ConsumeIntegralInRange<uint32_t>(1, SmsMmsFuzz::MAX_PART_COUNT);
+    for (uint32_t i = 0; i < count; ++i) {
+        MmsBodyPart part = SmsMmsFuzz::MakeBodyPart(cursor, i == 0 && cursor.ConsumeBool());
         body.IsBodyPartExist(part);
         body.AddMmsBodyPart(part);
     }

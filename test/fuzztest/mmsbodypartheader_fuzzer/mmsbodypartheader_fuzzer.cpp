@@ -26,7 +26,7 @@ static void DecodeHeaderBytes(const std::vector<uint8_t> &bytes)
     uint32_t len = static_cast<uint32_t>(bytes.size());
     header.DecodeWellKnownHeader(*decodeBuffer, len);
 
-    decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(bytes);
+    decodeBuffer->DecreasePointer(decodeBuffer->GetCurPosition());
     len = static_cast<uint32_t>(bytes.size());
     header.DecodeApplicationHeader(*decodeBuffer, len);
 }
@@ -55,11 +55,6 @@ static void RunMmsBodyPartHeaderFuzz(const uint8_t *data, size_t size)
     header.EncodeMmsBodyPartHeader(encodeBuffer);
     DecodeHeaderBytes(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
 
-    std::vector<uint8_t> synthetic = {
-        static_cast<uint8_t>(SmsMmsFuzz::SHORT_INTEGER_MARK | static_cast<uint8_t>(MmsHeaderParam::P_CONTENT_ID)),
-        '"', 'f', 'u', 'z', 'z', SmsMmsFuzz::ZERO_BYTE,
-    };
-    DecodeHeaderBytes(synthetic);
     DecodeHeaderBytes(cursor.ConsumeBytes<uint8_t>(SmsMmsFuzz::MAX_BINARY_SIZE));
     MmsBodyPartHeader copy(header);
     MmsBodyPartHeader assigned = copy;

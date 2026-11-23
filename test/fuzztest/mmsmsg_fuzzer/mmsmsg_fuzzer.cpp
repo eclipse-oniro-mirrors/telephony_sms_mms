@@ -54,7 +54,7 @@ static void RunMmsMsgFuzz(const uint8_t *data, size_t size)
     MmsMsg msg;
     SmsMmsFuzz::FillMmsMsg(msg, cursor, messageType);
     msg.SetMmsVersion(static_cast<uint16_t>(
-        cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_MMS_VERSION_VALUE)));
+        cursor.ConsumeIntegralInRange<uint32_t>(0, SmsMmsFuzz::MAX_MMS_VERSION_VALUE)));
     msg.SetMmsMessageType(messageType);
     msg.SetMmsTransactionId(cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE));
     msg.SetMmsDate(static_cast<int64_t>(cursor.ConsumeIntegral<uint64_t>()));
@@ -66,12 +66,12 @@ static void RunMmsMsgFuzz(const uint8_t *data, size_t size)
     msg.SetHeaderStringValue(MMS_CONTENT_LOCATION, text);
     msg.SetHeaderOctetValue(MMS_CONTENT_CLASS, static_cast<uint8_t>(MmsContentClass::MMS_TEXT));
     msg.SetHeaderIntegerValue(MMS_MESSAGE_COUNT, static_cast<int32_t>(
-        cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_HEADER_VALUE)));
+        cursor.ConsumeIntegralInRange<uint32_t>(0, SmsMmsFuzz::MAX_HEADER_VALUE)));
     QueryMsg(msg);
 
-    uint32_t outLen = SmsMmsFuzz::EMPTY_SIZE;
+    uint32_t outLen = 0;
     auto encoded = msg.EncodeMsg(outLen);
-    if (encoded != nullptr && outLen > SmsMmsFuzz::EMPTY_SIZE) {
+    if (encoded != nullptr && outLen > 0) {
         MmsMsg decoded;
         if (decoded.DecodeMsg(std::move(encoded), outLen)) {
             QueryMsg(decoded);

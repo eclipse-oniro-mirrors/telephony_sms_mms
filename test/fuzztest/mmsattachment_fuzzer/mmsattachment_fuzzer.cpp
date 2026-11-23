@@ -24,7 +24,7 @@ static void RunMmsAttachmentFuzz(const uint8_t *data, size_t size)
     FuzzedDataProvider rawProvider(data, size);
     auto rawBuffer = SmsMmsFuzz::MakeDecodeBuffer(rawProvider.ConsumeRemainingBytes<uint8_t>());
     MmsBodyPart rawPart;
-    rawPart.DecodePart(*rawBuffer, SmsMmsFuzz::MIN_BUFFER_SIZE);
+    rawPart.DecodePart(*rawBuffer, SmsMmsFuzz::SINGLE_PART_ENTRY_COUNT);
     FuzzedDataProvider cursor(data, size);
     MmsAttachment attachment = SmsMmsFuzz::MakeAttachment(cursor);
     attachment.SetAttachmentFilePath(cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE),
@@ -40,7 +40,7 @@ static void RunMmsAttachmentFuzz(const uint8_t *data, size_t size)
 
     std::vector<uint8_t> bytes = cursor.ConsumeBytes<uint8_t>(SmsMmsFuzz::MAX_BINARY_SIZE);
     attachment.SetDataBuffer(SmsMmsFuzz::MakeCharBuffer(bytes), static_cast<uint32_t>(bytes.size()));
-    uint32_t len = SmsMmsFuzz::EMPTY_SIZE;
+    uint32_t len = 0;
     auto buffer = attachment.GetDataBuffer(len);
     MmsAttachment copy(attachment);
     copy.GetAttachmentFilePath();
@@ -59,7 +59,7 @@ static void RunMmsAttachmentFuzz(const uint8_t *data, size_t size)
         if (bodyPart.EncodeMmsBodyPart(encodeBuffer)) {
             auto decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(SmsMmsFuzz::ReadEncodedBytes(encodeBuffer));
             MmsBodyPart decoded;
-            decoded.DecodePart(*decodeBuffer, SmsMmsFuzz::MIN_BUFFER_SIZE);
+            decoded.DecodePart(*decodeBuffer, SmsMmsFuzz::SINGLE_PART_ENTRY_COUNT);
         }
     }
 }

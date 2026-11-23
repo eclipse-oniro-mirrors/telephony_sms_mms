@@ -21,8 +21,8 @@ namespace OHOS {
 namespace Telephony {
 static void QueryHeader(MmsHeader &header)
 {
-    uint8_t octet = SmsMmsFuzz::ZERO_BYTE;
-    int64_t longValue = static_cast<int64_t>(SmsMmsFuzz::EMPTY_SIZE);
+    uint8_t octet = 0;
+    int64_t longValue = 0;
     std::string textValue;
     std::vector<MmsAddress> addresses;
     header.GetOctetValue(MMS_MESSAGE_TYPE, octet);
@@ -46,7 +46,7 @@ static void RunMmsHeaderFuzz(const uint8_t *data, size_t size)
     SmsMmsFuzz::FillMmsHeader(header, cursor, messageType);
     header.SetOctetValue(MMS_PRIORITY, cursor.ConsumeIntegral<uint8_t>());
     header.SetLongValue(MMS_MESSAGE_COUNT,
-        cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_HEADER_VALUE));
+        cursor.ConsumeIntegralInRange<uint32_t>(0, SmsMmsFuzz::MAX_HEADER_VALUE));
     std::string text = cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE);
     header.SetTextValue(MMS_CANCEL_ID, text);
     MmsAddress address = SmsMmsFuzz::MakeAddress(cursor);

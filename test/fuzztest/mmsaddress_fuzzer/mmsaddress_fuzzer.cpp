@@ -46,7 +46,7 @@ static std::string PickAddressTemplate(FuzzedDataProvider &cursor)
         ADDRESS_TEMPLATE_UNKNOWN,
         ADDRESS_TEMPLATE_MALFORMED,
     };
-    return ADDRESS_TEMPLATES[cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE,
+    return ADDRESS_TEMPLATES[cursor.ConsumeIntegralInRange<uint32_t>(0,
         SmsMmsFuzz::LastIndex(ADDRESS_TEMPLATES.size()))];
 }
 
@@ -69,8 +69,8 @@ static void RunMmsAddressFuzz(const uint8_t *data, size_t size)
     directAddress.GetAddressCharset();
     directAddress.GetAddressType();
 
-    uint32_t count = cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::MIN_BUFFER_SIZE, SmsMmsFuzz::MAX_PART_COUNT);
-    for (uint32_t i = SmsMmsFuzz::EMPTY_SIZE; i < count; ++i) {
+    uint32_t count = cursor.ConsumeIntegralInRange<uint32_t>(1, SmsMmsFuzz::MAX_PART_COUNT);
+    for (uint32_t i = 0; i < count; ++i) {
         MmsAddress address = SmsMmsFuzz::MakeAddress(cursor);
         switch ((opcode + i) % ADDRESS_OPERATION_KIND_COUNT) {
             case ADDRESS_USE_INPUT:
@@ -85,7 +85,7 @@ static void RunMmsAddressFuzz(const uint8_t *data, size_t size)
                     static_cast<MmsCharSets>(SmsMmsFuzz::PickCharset(cursor)));
                 break;
             default:
-                address.SetMmsAddressString("", static_cast<MmsCharSets>(SmsMmsFuzz::EMPTY_SIZE));
+                address.SetMmsAddressString("", static_cast<MmsCharSets>(SmsMmsFuzz::UNSPECIFIED_CHARSET));
                 break;
         }
         address.GetAddressString();

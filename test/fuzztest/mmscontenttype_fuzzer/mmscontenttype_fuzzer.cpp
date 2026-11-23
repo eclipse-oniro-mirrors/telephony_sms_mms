@@ -23,7 +23,7 @@ static void DecodeContentTypeBytes(const std::vector<uint8_t> &bytes)
 {
     auto decodeBuffer = SmsMmsFuzz::MakeDecodeBuffer(bytes);
     MmsContentType contentType;
-    int32_t len = static_cast<int32_t>(SmsMmsFuzz::EMPTY_SIZE);
+    int32_t len = 0;
     contentType.DecodeMmsContentType(*decodeBuffer, len);
 }
 

@@ -74,6 +74,8 @@
                             desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
                 <filteritem type="filepath" name="test/fuzztest/mmsbodypart_fuzzer/corpus/truncated[.]pdu"
                             desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsbodypartheader_fuzzer/corpus/content-id[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
                 <filteritem type="filepath" name="test/fuzztest/mmsbodypartheader_fuzzer/corpus/init"
                             desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
                 <filteritem type="filepath" name="test/fuzztest/mmsbodypartheader_fuzzer/corpus/truncated[.]pdu"
@@ -84,7 +86,11 @@
                             desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
                 <filteritem type="filepath" name="test/fuzztest/mmscontenttype_fuzzer/corpus/init"
                             desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
-                <filteritem type="filepath" name="test/fuzztest/mmscontenttype_fuzzer/corpus/truncated[.]pdu"
+                <filteritem type="filepath" name="test/fuzztest/mmsdecodebuffer_fuzzer/corpus/value-length-text[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsdecodebuffer_fuzzer/corpus/quoted-text[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsdecodebuffer_fuzzer/corpus/uintvar-short-int[.]pdu"
                             desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
                 <filteritem type="filepath" name="test/fuzztest/mmsdecodebuffer_fuzzer/corpus/init"
                             desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>

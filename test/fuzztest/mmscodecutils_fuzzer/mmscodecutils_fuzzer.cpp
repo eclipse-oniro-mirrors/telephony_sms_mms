@@ -55,7 +55,7 @@ static std::string PickCodecSample(FuzzedDataProvider &cursor)
         CODEC_SAMPLE_CHARSET_HEADER,
         CODEC_SAMPLE_CONTENT_TYPE,
     };
-    return CODEC_SAMPLES[cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE,
+    return CODEC_SAMPLES[cursor.ConsumeIntegralInRange<uint32_t>(0,
         SmsMmsFuzz::LastIndex(CODEC_SAMPLES.size()))];
 }
 
@@ -69,7 +69,7 @@ static std::string PickCharsetName(FuzzedDataProvider &cursor)
         CHARSET_NAME_GB2312,
         CHARSET_NAME_UNKNOWN,
     };
-    return CHARSET_NAMES[cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE,
+    return CHARSET_NAMES[cursor.ConsumeIntegralInRange<uint32_t>(0,
         SmsMmsFuzz::LastIndex(CHARSET_NAMES.size()))];
 }
 
@@ -78,7 +78,7 @@ static void RunMmsCodecUtilsFuzz(const uint8_t *data, size_t size)
     FuzzedDataProvider cursor(data, size);
     uint8_t opcode = cursor.ConsumeIntegral<uint8_t>();
     bool useKnownSample = cursor.ConsumeBool();
-    uint32_t operationCount = cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::MIN_BUFFER_SIZE,
+    uint32_t operationCount = cursor.ConsumeIntegralInRange<uint32_t>(1,
         SmsMmsFuzz::MAX_PART_COUNT);
     std::string input = useKnownSample ? PickCodecSample(cursor) :
         cursor.ConsumeRandomLengthString(SmsMmsFuzz::MAX_TEXT_SIZE);
@@ -91,9 +91,9 @@ static void RunMmsCodecUtilsFuzz(const uint8_t *data, size_t size)
     if (charset == nullptr) {
         return;
     }
-    uint32_t charsetValue = SmsMmsFuzz::EMPTY_SIZE;
+    uint32_t charsetValue = 0;
     std::string charsetName;
-    for (uint32_t i = SmsMmsFuzz::EMPTY_SIZE; i < operationCount; ++i) {
+    for (uint32_t i = 0; i < operationCount; ++i) {
         std::string sample = useKnownSample ? PickCodecSample(cursor) :
             cursor.ConsumeRandomLengthString(SmsMmsFuzz::MAX_TEXT_SIZE);
         switch ((opcode + i) % CODEC_OPERATION_KIND_COUNT) {
@@ -112,7 +112,7 @@ static void RunMmsCodecUtilsFuzz(const uint8_t *data, size_t size)
                 charset->GetCharSetIntFromString(charsetValue,
                     cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE));
                 charset->GetCharSetStrFromInt(charsetName,
-                    cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE, SmsMmsFuzz::MAX_CHARSET_VALUE));
+                    cursor.ConsumeIntegralInRange<uint32_t>(0, SmsMmsFuzz::MAX_CHARSET_VALUE));
                 break;
         }
     }

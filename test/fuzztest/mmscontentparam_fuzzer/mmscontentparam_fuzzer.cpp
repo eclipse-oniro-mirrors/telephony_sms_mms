@@ -43,7 +43,7 @@ static uint8_t PickContentParamField(FuzzedDataProvider &cursor)
         static_cast<uint8_t>(ContentParam::CT_P_START_VALUE),
         SmsMmsFuzz::INVALID_FIELD_ID,
     };
-    return PARAM_FIELDS[cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::EMPTY_SIZE,
+    return PARAM_FIELDS[cursor.ConsumeIntegralInRange<uint32_t>(0,
         SmsMmsFuzz::LastIndex(PARAM_FIELDS.size()))];
 }
 
@@ -62,17 +62,17 @@ static void RunMmsContentParamFuzz(const uint8_t *data, size_t size)
     param.SetFileName(cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE));
     param.SetStart(cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE));
 
-    uint32_t count = cursor.ConsumeIntegralInRange<uint32_t>(SmsMmsFuzz::MIN_BUFFER_SIZE, SmsMmsFuzz::MAX_PART_COUNT);
-    for (uint32_t i = SmsMmsFuzz::EMPTY_SIZE; i < count; ++i) {
+    uint32_t count = cursor.ConsumeIntegralInRange<uint32_t>(1, SmsMmsFuzz::MAX_PART_COUNT);
+    for (uint32_t i = 0; i < count; ++i) {
         uint8_t field = useKnownField ? PickContentParamField(cursor) : cursor.ConsumeIntegral<uint8_t>();
         std::string value = cursor.ConsumeRandomLengthString(SmsMmsFuzz::SHORT_TEXT_SIZE);
-        if (((opcode + i) % CONTENT_PARAM_VALUE_CLEAR_INTERVAL) == SmsMmsFuzz::EMPTY_SIZE) {
+        if (((opcode + i) % CONTENT_PARAM_VALUE_CLEAR_INTERVAL) == 0) {
             value.clear();
         }
         param.AddNormalField(field, value);
         std::string out;
         param.GetNormalField(field, out);
-        param.GetNormalField(static_cast<uint8_t>(field + SmsMmsFuzz::MIN_BUFFER_SIZE), out);
+        param.GetNormalField(static_cast<uint8_t>(field + 1), out);
     }
 
     switch (opcode % CONTENT_PARAM_OPERATION_KIND_COUNT) {
@@ -86,7 +86,7 @@ static void RunMmsContentParamFuzz(const uint8_t *data, size_t size)
             param.SetType("application/vnd.wap.multipart.related");
             break;
         default:
-            param.SetCharSet(SmsMmsFuzz::EMPTY_SIZE);
+            param.SetCharSet(SmsMmsFuzz::UNSPECIFIED_CHARSET);
             break;
     }
 

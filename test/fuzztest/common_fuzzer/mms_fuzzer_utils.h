@@ -40,11 +40,11 @@
 namespace OHOS {
 namespace Telephony {
 namespace SmsMmsFuzz {
-constexpr uint32_t MIN_BUFFER_SIZE = 1;
 constexpr uint32_t MAX_TEXT_SIZE = 96;
 constexpr uint32_t MAX_BINARY_SIZE = 1000;
 constexpr uint32_t MAX_PART_COUNT = 4;
-constexpr uint32_t EMPTY_SIZE = 0;
+constexpr uint32_t SINGLE_PART_ENTRY_COUNT = 1;
+constexpr uint32_t UNSPECIFIED_CHARSET = 0;
 constexpr int FUZZER_SUCCESS = 0;
 constexpr uint32_t SHORT_TEXT_SIZE = 32;
 constexpr uint32_t MEDIUM_TEXT_SIZE = 48;
@@ -53,19 +53,10 @@ constexpr uint32_t MAX_CHARSET_VALUE = 0x1000;
 constexpr uint32_t MAX_MMS_VERSION_VALUE = 0xff;
 constexpr uint32_t MMS_VERSION_MIN_VALUE = 0x10;
 constexpr uint32_t MMS_VERSION_MAX_VALUE = 0x13;
-constexpr uint32_t PRINTABLE_ASCII_RANGE = 95;
 constexpr uint32_t ADDRESS_TYPE_COUNT = 5;
-constexpr uint32_t UINT32_BYTE_COUNT = sizeof(uint32_t);
-constexpr uint32_t UINT64_BYTE_COUNT = sizeof(uint64_t);
-constexpr uint32_t BYTE_BITS = 8;
-constexpr uint8_t BYTE_MASK = 0xffU;
-constexpr uint8_t BOOL_LOW_BIT_MASK = 0x01;
 constexpr uint8_t SHORT_INTEGER_MARK = 0x80;
 constexpr uint8_t SHORT_INTEGER_MASK = 0x7f;
 constexpr uint8_t INVALID_FIELD_ID = 0xff;
-constexpr uint8_t ZERO_BYTE = 0x00;
-constexpr char PRINTABLE_ASCII_FIRST = ' ';
-constexpr char DEFAULT_BUFFER_FILL = 'F';
 constexpr size_t CONTENT_TYPE_COUNT = 8;
 constexpr size_t DISPOSITION_COUNT = 4;
 constexpr size_t TRANSFER_ENCODING_COUNT = 3;
@@ -73,12 +64,6 @@ constexpr size_t CHARSET_COUNT = 7;
 constexpr size_t CONTENT_PARAM_TEXT_FIELD_COUNT = 8;
 constexpr size_t MESSAGE_TYPE_COUNT = 9;
 constexpr size_t FALLBACK_DATA_SIZE = 4;
-
-static_assert(FUZZER_SUCCESS == static_cast<int>(EMPTY_SIZE));
-static_assert(MAX_CHARSET_VALUE > MAX_TEXT_SIZE);
-static_assert(MAX_MMS_VERSION_VALUE > MMS_VERSION_MAX_VALUE);
-static_assert(SHORT_INTEGER_MARK > SHORT_INTEGER_MASK);
-static_assert(INVALID_FIELD_ID > SHORT_INTEGER_MARK);
 
 constexpr std::array<const char *, CONTENT_TYPE_COUNT> CONTENT_TYPES = {
     "text/plain",
@@ -111,7 +96,7 @@ constexpr std::array<uint32_t, CHARSET_COUNT> CHARSETS = {
     static_cast<uint32_t>(MmsCharSets::ISO_10646_UCS_2),
     static_cast<uint32_t>(MmsCharSets::SHIFT_JIS),
     static_cast<uint32_t>(MmsCharSets::BIG5),
-    EMPTY_SIZE,
+    UNSPECIFIED_CHARSET,
 };
 
 constexpr std::array<const char *, ADDRESS_TYPE_COUNT> ADDRESS_TYPES = {
@@ -154,37 +139,37 @@ constexpr std::array<uint8_t, FALLBACK_DATA_SIZE> FALLBACK_BYTES = {
 
 inline uint32_t LastIndex(size_t size)
 {
-    return static_cast<uint32_t>(size - MIN_BUFFER_SIZE);
+    return static_cast<uint32_t>(size - 1);
 }
 
 inline std::string PickContentType(FuzzedDataProvider &cursor)
 {
     if (cursor.ConsumeBool()) {
-        return CONTENT_TYPES[cursor.ConsumeIntegralInRange<uint32_t>(EMPTY_SIZE, LastIndex(CONTENT_TYPES.size()))];
+        return CONTENT_TYPES[cursor.ConsumeIntegralInRange<uint32_t>(0, LastIndex(CONTENT_TYPES.size()))];
     }
     return cursor.ConsumeRandomLengthString(MAX_TEXT_SIZE);
 }
 
 inline std::string PickDisposition(FuzzedDataProvider &cursor)
 {
-    return DISPOSITIONS[cursor.ConsumeIntegralInRange<uint32_t>(EMPTY_SIZE, LastIndex(DISPOSITIONS.size()))];
+    return DISPOSITIONS[cursor.ConsumeIntegralInRange<uint32_t>(0, LastIndex(DISPOSITIONS.size()))];
 }
 
 inline std::string PickTransferEncoding(FuzzedDataProvider &cursor)
 {
-    return TRANSFER_ENCODINGS[cursor.ConsumeIntegralInRange<uint32_t>(EMPTY_SIZE,
+    return TRANSFER_ENCODINGS[cursor.ConsumeIntegralInRange<uint32_t>(0,
         LastIndex(TRANSFER_ENCODINGS.size()))];
 }
 
 inline uint32_t PickCharset(FuzzedDataProvider &cursor)
 {
-    return CHARSETS[cursor.ConsumeIntegralInRange<uint32_t>(EMPTY_SIZE, LastIndex(CHARSETS.size()))];
+    return CHARSETS[cursor.ConsumeIntegralInRange<uint32_t>(0, LastIndex(CHARSETS.size()))];
 }
 
 inline MmsAddress MakeAddress(FuzzedDataProvider &cursor)
 {
     std::string localPart = cursor.ConsumeRandomLengthString(SHORT_TEXT_SIZE);
-    uint32_t index = cursor.ConsumeIntegralInRange<uint32_t>(EMPTY_SIZE, LastIndex(ADDRESS_TYPES.size()));
+    uint32_t index = cursor.ConsumeIntegralInRange<uint32_t>(0, LastIndex(ADDRESS_TYPES.size()));
     std::string address = localPart + "/TYPE=" + ADDRESS_TYPES[index];
     MmsAddress result;
     result.SetMmsAddressString(address, static_cast<MmsCharSets>(PickCharset(cursor)));
@@ -204,7 +189,7 @@ inline std::vector<uint8_t> CopyRawBytes(const std::unique_ptr<char[]> &raw, uin
 {
     std::vector<uint8_t> bytes;
     bytes.reserve(len);
-    for (uint32_t i = EMPTY_SIZE; i < len; ++i) {
+    for (uint32_t i = 0; i < len; ++i) {
         bytes.push_back(static_cast<uint8_t>(raw[i]));
     }
     return bytes;
@@ -213,15 +198,15 @@ inline std::vector<uint8_t> CopyRawBytes(const std::unique_ptr<char[]> &raw, uin
 inline std::unique_ptr<char[]> ReadRawEncodedBytes(MmsEncodeBuffer &encodeBuffer, uint32_t &len)
 {
     len = encodeBuffer.GetCurPosition();
-    if (len == EMPTY_SIZE) {
+    if (len == 0) {
         return nullptr;
     }
-    return encodeBuffer.ReadDataBuffer(EMPTY_SIZE, len);
+    return encodeBuffer.ReadDataBuffer(0, len);
 }
 
 inline std::vector<uint8_t> ReadEncodedBytes(MmsEncodeBuffer &encodeBuffer)
 {
-    uint32_t len = EMPTY_SIZE;
+    uint32_t len = 0;
     auto raw = ReadRawEncodedBytes(encodeBuffer, len);
     if (raw == nullptr) {
         return {};
@@ -239,9 +224,9 @@ inline void FillContentParamTextFields(MmsContentParam &param, FuzzedDataProvide
 
 inline void AddContentParamNormalFields(MmsContentParam &param, FuzzedDataProvider &cursor)
 {
-    uint32_t count = cursor.ConsumeIntegralInRange<uint32_t>(MIN_BUFFER_SIZE, MAX_PART_COUNT);
-    for (uint32_t i = EMPTY_SIZE; i < count; ++i) {
-        uint8_t field = CONTENT_PARAM_TEXT_FIELDS[cursor.ConsumeIntegralInRange<uint32_t>(EMPTY_SIZE,
+    uint32_t count = cursor.ConsumeIntegralInRange<uint32_t>(1, MAX_PART_COUNT);
+    for (uint32_t i = 0; i < count; ++i) {
+        uint8_t field = CONTENT_PARAM_TEXT_FIELDS[cursor.ConsumeIntegralInRange<uint32_t>(0,
             LastIndex(CONTENT_PARAM_TEXT_FIELDS.size()))];
         param.AddNormalField(field, cursor.ConsumeRandomLengthString(SHORT_TEXT_SIZE));
     }
@@ -324,7 +309,13 @@ inline void FillFallbackBodyPart(MmsBodyPart &bodyPart, bool forceSmil)
     bodyPart.SetSmilFile(forceSmil);
 }
 
-inline void FillFallbackAttachmentCodec(MmsAttachment &fallback, bool forceSmil);
+inline void FillFallbackAttachmentCodec(MmsAttachment &fallback, bool forceSmil)
+{
+    fallback.SetContentTransferEncoding("binary");
+    fallback.SetContentType("text/plain");
+    fallback.SetCharSet(static_cast<uint32_t>(MmsCharSets::UTF_8));
+    fallback.SetIsSmilFile(forceSmil);
+}
 
 inline void FillFallbackAttachmentMetadata(MmsAttachment &fallback, bool forceSmil)
 {
@@ -333,14 +324,6 @@ inline void FillFallbackAttachmentMetadata(MmsAttachment &fallback, bool forceSm
     fallback.SetContentLocation("fallback.dat");
     fallback.SetContentDisposition("attachment");
     FillFallbackAttachmentCodec(fallback, forceSmil);
-}
-
-inline void FillFallbackAttachmentCodec(MmsAttachment &fallback, bool forceSmil)
-{
-    fallback.SetContentTransferEncoding("binary");
-    fallback.SetContentType("text/plain");
-    fallback.SetCharSet(static_cast<uint32_t>(MmsCharSets::UTF_8));
-    fallback.SetIsSmilFile(forceSmil);
 }
 
 inline MmsAttachment MakeFallbackAttachment(bool forceSmil)
@@ -372,22 +355,7 @@ inline MmsBodyPart MakeBodyPart(FuzzedDataProvider &cursor, bool forceSmil = fal
 
 inline uint8_t PickMessageType(FuzzedDataProvider &cursor)
 {
-    return MESSAGE_TYPES[cursor.ConsumeIntegralInRange<uint32_t>(EMPTY_SIZE, LastIndex(MESSAGE_TYPES.size()))];
-}
-
-inline void AddMessageHeaderTextFields(MmsHeader &header, FuzzedDataProvider &cursor);
-inline void AddMessageHeaderSizeFields(MmsHeader &header, FuzzedDataProvider &cursor);
-
-inline void AddCommonHeaderFields(MmsHeader &header, FuzzedDataProvider &cursor, uint8_t messageType)
-{
-    header.SetOctetValue(MMS_MESSAGE_TYPE, messageType);
-    header.SetLongValue(MMS_MMS_VERSION, cursor.ConsumeBool() ?
-        cursor.ConsumeIntegralInRange<uint32_t>(MMS_VERSION_MIN_VALUE, MMS_VERSION_MAX_VALUE) :
-        cursor.ConsumeIntegralInRange<uint32_t>(EMPTY_SIZE, MAX_MMS_VERSION_VALUE));
-    header.SetTextValue(MMS_TRANSACTION_ID, cursor.ConsumeRandomLengthString(SHORT_TEXT_SIZE));
-    header.SetLongValue(MMS_DATE, static_cast<int64_t>(cursor.ConsumeIntegral<uint64_t>()));
-    AddMessageHeaderTextFields(header, cursor);
-    AddMessageHeaderSizeFields(header, cursor);
+    return MESSAGE_TYPES[cursor.ConsumeIntegralInRange<uint32_t>(0, LastIndex(MESSAGE_TYPES.size()))];
 }
 
 inline void AddMessageHeaderTextFields(MmsHeader &header, FuzzedDataProvider &cursor)
@@ -398,10 +366,22 @@ inline void AddMessageHeaderTextFields(MmsHeader &header, FuzzedDataProvider &cu
 
 inline void AddMessageHeaderSizeFields(MmsHeader &header, FuzzedDataProvider &cursor)
 {
-    header.SetLongValue(MMS_MESSAGE_SIZE, cursor.ConsumeIntegralInRange<uint32_t>(MIN_BUFFER_SIZE, MAX_HEADER_VALUE));
-    header.SetLongValue(MMS_EXPIRY, cursor.ConsumeIntegralInRange<uint32_t>(MIN_BUFFER_SIZE, MAX_HEADER_VALUE));
+    header.SetLongValue(MMS_MESSAGE_SIZE, cursor.ConsumeIntegralInRange<uint32_t>(1, MAX_HEADER_VALUE));
+    header.SetLongValue(MMS_EXPIRY, cursor.ConsumeIntegralInRange<uint32_t>(1, MAX_HEADER_VALUE));
     header.GetHeaderContentType().SetContentType(cursor.ConsumeBool() ? "application/vnd.wap.multipart.related" :
         PickContentType(cursor));
+}
+
+inline void AddCommonHeaderFields(MmsHeader &header, FuzzedDataProvider &cursor, uint8_t messageType)
+{
+    header.SetOctetValue(MMS_MESSAGE_TYPE, messageType);
+    header.SetLongValue(MMS_MMS_VERSION, cursor.ConsumeBool() ?
+        cursor.ConsumeIntegralInRange<uint32_t>(MMS_VERSION_MIN_VALUE, MMS_VERSION_MAX_VALUE) :
+        cursor.ConsumeIntegralInRange<uint32_t>(0, MAX_MMS_VERSION_VALUE));
+    header.SetTextValue(MMS_TRANSACTION_ID, cursor.ConsumeRandomLengthString(SHORT_TEXT_SIZE));
+    header.SetLongValue(MMS_DATE, static_cast<int64_t>(cursor.ConsumeIntegral<uint64_t>()));
+    AddMessageHeaderTextFields(header, cursor);
+    AddMessageHeaderSizeFields(header, cursor);
 }
 
 inline void AddAddressFields(MmsHeader &header, FuzzedDataProvider &cursor)
@@ -412,23 +392,6 @@ inline void AddAddressFields(MmsHeader &header, FuzzedDataProvider &cursor)
     header.AddHeaderAddressValue(MMS_FROM, from);
     header.AddHeaderAddressValue(MMS_TO, to);
     header.AddHeaderAddressValue(MMS_CC, cc);
-}
-
-inline void AddClassOctetFields(MmsHeader &header, FuzzedDataProvider &cursor);
-inline void AddBoolOctetFields(MmsHeader &header, FuzzedDataProvider &cursor);
-
-inline void AddOctetFields(MmsHeader &header, FuzzedDataProvider &cursor)
-{
-    header.SetOctetValue(MMS_RESPONSE_STATUS, cursor.ConsumeBool() ?
-        static_cast<uint8_t>(MmsResponseStatus::MMS_OK) : cursor.ConsumeIntegral<uint8_t>());
-    header.SetOctetValue(MMS_STATUS, cursor.ConsumeBool() ? static_cast<uint8_t>(MmsStatus::MMS_RETRIEVED) :
-        cursor.ConsumeIntegral<uint8_t>());
-    header.SetOctetValue(MMS_READ_STATUS, cursor.ConsumeBool() ? static_cast<uint8_t>(MmsReadStatus::MMS_READ) :
-        cursor.ConsumeIntegral<uint8_t>());
-    header.SetOctetValue(MMS_PRIORITY, cursor.ConsumeBool() ? static_cast<uint8_t>(MmsPriority::MMS_NORMAL) :
-        cursor.ConsumeIntegral<uint8_t>());
-    AddClassOctetFields(header, cursor);
-    AddBoolOctetFields(header, cursor);
 }
 
 inline void AddClassOctetFields(MmsHeader &header, FuzzedDataProvider &cursor)
@@ -445,6 +408,20 @@ inline void AddBoolOctetFields(MmsHeader &header, FuzzedDataProvider &cursor)
         static_cast<uint8_t>(MmsBoolType::MMS_NO));
     header.SetOctetValue(MMS_REPORT_ALLOWED, cursor.ConsumeBool() ? static_cast<uint8_t>(MmsBoolType::MMS_YES) :
         static_cast<uint8_t>(MmsBoolType::MMS_NO));
+}
+
+inline void AddOctetFields(MmsHeader &header, FuzzedDataProvider &cursor)
+{
+    header.SetOctetValue(MMS_RESPONSE_STATUS, cursor.ConsumeBool() ?
+        static_cast<uint8_t>(MmsResponseStatus::MMS_OK) : cursor.ConsumeIntegral<uint8_t>());
+    header.SetOctetValue(MMS_STATUS, cursor.ConsumeBool() ? static_cast<uint8_t>(MmsStatus::MMS_RETRIEVED) :
+        cursor.ConsumeIntegral<uint8_t>());
+    header.SetOctetValue(MMS_READ_STATUS, cursor.ConsumeBool() ? static_cast<uint8_t>(MmsReadStatus::MMS_READ) :
+        cursor.ConsumeIntegral<uint8_t>());
+    header.SetOctetValue(MMS_PRIORITY, cursor.ConsumeBool() ? static_cast<uint8_t>(MmsPriority::MMS_NORMAL) :
+        cursor.ConsumeIntegral<uint8_t>());
+    AddClassOctetFields(header, cursor);
+    AddBoolOctetFields(header, cursor);
 }
 
 inline void FillMmsHeader(MmsHeader &header, FuzzedDataProvider &cursor, uint8_t messageType)
@@ -469,15 +446,6 @@ inline void FillMmsMsg(MmsMsg &msg, FuzzedDataProvider &cursor, uint8_t messageT
     if (messageType == MMS_MSGTYPE_SEND_REQ || messageType == MMS_MSGTYPE_RETRIEVE_CONF) {
         AddMsgAttachments(msg, cursor);
     }
-}
-
-inline std::vector<uint8_t> EncodeMmsMessageToBytes(MmsMsg &msg, uint32_t &len)
-{
-    auto encoded = msg.EncodeMsg(len);
-    if (encoded == nullptr || len == EMPTY_SIZE) {
-        return {};
-    }
-    return CopyRawBytes(encoded, len);
 }
 
 } // namespace SmsMmsFuzz
