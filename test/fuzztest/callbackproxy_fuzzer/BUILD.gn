@@ -65,7 +65,6 @@ ohos_fuzztest("CallbackProxyFuzzTest") {
   ]
 
   sources = [
-    "$SMS_MMS_SOURCE_DIR/test/fuzztest/common_fuzzer/addsmstoken_fuzzer.cpp",
     "callbackproxy_fuzzer.cpp",
   ]
 }

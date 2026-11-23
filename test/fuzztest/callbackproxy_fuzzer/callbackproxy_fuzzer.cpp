@@ -18,94 +18,31 @@
 #include <cstddef>
 #include <cstdint>
 #include <fuzzer/FuzzedDataProvider.h>
-#include <string>
-#include <vector>
 
-#include "addsmstoken_fuzzer.h"
 #include "ims_sms_callback_proxy.h"
 #include "iremote_object.h"
 #include "message_option.h"
 #include "message_parcel.h"
 #include "sms_delivery_short_message_proxy.h"
+#include "sms_fuzzer_reply_remote.h"
+#include "sms_fuzzer_utils.h"
 #include "sms_send_short_message_proxy.h"
 
 using namespace OHOS::Telephony;
 namespace OHOS {
+using namespace SmsFuzz;
+
 namespace {
-constexpr size_t MIN_SIZE_NUM = 1;
-constexpr size_t MAX_STRING_SIZE = 256;
-constexpr uint8_t ASCII_PRINTABLE_BASE = 0x20;
-constexpr uint8_t ASCII_PRINTABLE_RANGE = 0x5F;
-constexpr int32_t MAX_SLOT_ID = 2;
-constexpr int32_t INVALID_SLOT_ID = -1;
-constexpr uint32_t SMS_SEND_RESULT_MOD = 4;
-constexpr uint32_t IMS_CONFIG_MOD = 2;
+constexpr uint32_t MAX_SEND_RESULT = 4;
+constexpr uint32_t MAX_IMS_CONFIG = 2;
 constexpr uint32_t GROUP_SMS_CALLBACK = 0;
 constexpr uint32_t GROUP_IMS_CALLBACK = 1;
 constexpr uint32_t GROUP_COUNT = GROUP_IMS_CALLBACK + 1;
 
-std::u16string MakeText(FuzzedDataProvider &fdp)
-{
-    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, MAX_STRING_SIZE);
-    std::vector<uint8_t> raw = fdp.ConsumeBytes<uint8_t>(len);
-    std::u16string text;
-    text.reserve(raw.size());
-    for (uint8_t byte : raw) {
-        text.push_back(static_cast<char16_t>(ASCII_PRINTABLE_BASE + byte % ASCII_PRINTABLE_RANGE));
-    }
-    return text;
-}
-
-std::string MakeString(FuzzedDataProvider &fdp)
-{
-    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, MAX_STRING_SIZE);
-    std::vector<uint8_t> raw = fdp.ConsumeBytes<uint8_t>(len);
-    std::string text;
-    text.reserve(raw.size());
-    for (uint8_t byte : raw) {
-        text.push_back(static_cast<char>(ASCII_PRINTABLE_BASE + byte % ASCII_PRINTABLE_RANGE));
-    }
-    return text;
-}
-
-class CallbackRemote final : public IRemoteObject {
-public:
-    explicit CallbackRemote(FuzzedDataProvider &fdp) : IRemoteObject(u""), fdp_(fdp) {}
-
-    int32_t GetObjectRefCount() override
-    {
-        return 1;
-    }
-
-    bool AddDeathRecipient(const sptr<DeathRecipient> &recipient) override
-    {
-        return true;
-    }
-
-    bool RemoveDeathRecipient(const sptr<DeathRecipient> &recipient) override
-    {
-        return true;
-    }
-
-    int SendRequest(uint32_t code, MessageParcel &data, MessageParcel &reply, MessageOption &option) override
-    {
-        reply.WriteInt32(fdp_.ConsumeIntegral<int32_t>());
-        return fdp_.ConsumeIntegral<int32_t>();
-    }
-
-    int Dump(int fd, const std::vector<std::u16string> &args) override
-    {
-        return 0;
-    }
-
-private:
-    FuzzedDataProvider &fdp_;
-};
-
 void FillSendSmsResultInfo(SendSmsResultInfo &result, FuzzedDataProvider &fdp)
 {
     result.msgRef = fdp.ConsumeIntegral<int32_t>();
-    result.pdu = MakeString(fdp);
+    result.pdu = ConsumeString(fdp);
     result.errCode = fdp.ConsumeIntegral<int32_t>();
     result.flag = fdp.ConsumeIntegral<int64_t>();
 }
@@ -123,15 +60,15 @@ void FuzzSmsCallbackProxy(const sptr<IRemoteObject> &remote, FuzzedDataProvider 
     SmsSendShortMessageProxy sendProxy(remote);
     SmsDeliveryShortMessageProxy deliveryProxy(remote);
     auto result = static_cast<ISendShortMessageCallback::SmsSendResult>(
-        fdp.ConsumeIntegralInRange<uint32_t>(0, SMS_SEND_RESULT_MOD));
+        fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_SEND_RESULT));
     sendProxy.OnSmsSendResult(result);
-    deliveryProxy.OnSmsDeliveryResult(MakeText(fdp));
+    deliveryProxy.OnSmsDeliveryResult(ConsumeText(fdp));
 }
 
 void FuzzImsCallbackProxy(const sptr<IRemoteObject> &remote, FuzzedDataProvider &fdp)
 {
     ImsSmsCallbackProxy imsProxy(remote);
-    int32_t slotId = fdp.ConsumeIntegralInRange<int32_t>(INVALID_SLOT_ID, MAX_SLOT_ID);
+    int32_t slotId = ConsumeSlotId(fdp);
     SendSmsResultInfo smsResult;
     RadioResponseInfo radioInfo;
     FillSendSmsResultInfo(smsResult, fdp);
@@ -141,19 +78,19 @@ void FuzzImsCallbackProxy(const sptr<IRemoteObject> &remote, FuzzedDataProvider 
     imsProxy.ImsSendMessageResponse(slotId, radioInfo);
     imsProxy.ImsSetSmsConfigResponse(slotId, radioInfo);
     imsProxy.ImsGetSmsConfigResponse(slotId,
-        static_cast<int32_t>(fdp.ConsumeIntegralInRange<uint32_t>(0, IMS_CONFIG_MOD)));
+        static_cast<int32_t>(fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_IMS_CONFIG)));
     imsProxy.ImsGetSmsConfigResponse(slotId, radioInfo);
 }
 } // namespace
 
 void DoCallbackProxyFuzzTest(const uint8_t *data, size_t size)
 {
-    if (data == nullptr || size < MIN_SIZE_NUM) {
+    if (data == nullptr || size < MIN_INPUT_SIZE) {
         return;
     }
 
     FuzzedDataProvider fdp(data, size);
-    sptr<IRemoteObject> remote = new CallbackRemote(fdp);
+    sptr<IRemoteObject> remote = new SmsServiceReplyRemote(fdp);
     if (fdp.ConsumeIntegralInRange<uint32_t>(GROUP_SMS_CALLBACK, GROUP_COUNT - 1) == GROUP_SMS_CALLBACK) {
         FuzzSmsCallbackProxy(remote, fdp);
         return;
@@ -164,7 +101,6 @@ void DoCallbackProxyFuzzTest(const uint8_t *data, size_t size)
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    OHOS::AddSmsTokenFuzzer token;
     OHOS::DoCallbackProxyFuzzTest(data, size);
     return 0;
 }

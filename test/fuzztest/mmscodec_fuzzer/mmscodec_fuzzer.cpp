@@ -22,7 +22,6 @@
 #include <string>
 #include <vector>
 
-#include "addsmstoken_fuzzer.h"
 #include "mms_address.h"
 #include "mms_attachment.h"
 #include "mms_base64.h"
@@ -40,21 +39,19 @@
 #include "mms_header.h"
 #include "mms_msg.h"
 #include "mms_quoted_printable.h"
+#include "sms_fuzzer_utils.h"
 
 using namespace OHOS::Telephony;
 namespace OHOS {
+using namespace SmsFuzz;
+
 namespace {
-constexpr size_t MIN_SIZE_NUM = 1;
-constexpr size_t MAX_STRING_SIZE = 256;
 constexpr size_t MAX_BUFFER_SIZE = 1024;
 constexpr size_t MAX_READ_LEN = 64;
-constexpr uint8_t ASCII_PRINTABLE_BASE = 0x20;
-constexpr uint8_t ASCII_PRINTABLE_RANGE = 0x5F;
 constexpr uint32_t FIELD_COUNT = 64;
 constexpr uint32_t MMS_MESSAGE_TYPE_COUNT = 24;
-constexpr uint32_t CHARSET_MOD = 0x800;
 constexpr uint8_t MMS_MESSAGE_TYPE_BASE = 128;
-constexpr uint8_t WELL_KNOWN_CONTENT_TYPE_MOD = 0x55;
+constexpr uint8_t MAX_WELL_KNOWN_CONTENT_TYPE = 0x55;
 constexpr uint32_t GROUP_BUFFER_AND_DECODE = 0;
 constexpr uint32_t GROUP_ENCODE_AND_CONTENT = 1;
 constexpr uint32_t GROUP_ADDRESS_AND_ATTACHMENT = 2;
@@ -62,18 +59,6 @@ constexpr uint32_t GROUP_HEADER_AND_BODY = 3;
 constexpr uint32_t GROUP_MMS_MSG = 4;
 constexpr uint32_t GROUP_UTILITY_CODEC = 5;
 constexpr uint32_t GROUP_COUNT = GROUP_UTILITY_CODEC + 1;
-
-std::string MakeString(FuzzedDataProvider &fdp)
-{
-    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, MAX_STRING_SIZE);
-    std::vector<uint8_t> raw = fdp.ConsumeBytes<uint8_t>(len);
-    std::string text;
-    text.reserve(raw.size());
-    for (uint8_t byte : raw) {
-        text.push_back(static_cast<char>(ASCII_PRINTABLE_BASE + byte % ASCII_PRINTABLE_RANGE));
-    }
-    return text;
-}
 
 uint32_t MakeReadLen(FuzzedDataProvider &fdp)
 {
@@ -117,7 +102,7 @@ void FuzzMmsBuffer(FuzzedDataProvider &fdp)
     mmsBuffer.ReadDataBuffer(MakeReadLen(fdp), readLen);
     mmsBuffer.GetCurPosition();
     mmsBuffer.GetSize();
-    std::string pathName = MakeString(fdp);
+    std::string pathName = ConsumeString(fdp);
     mmsBuffer.WriteBufferFromFile(pathName);
 }
 
@@ -158,7 +143,7 @@ void FuzzMmsDecodeBuffer(FuzzedDataProvider &fdp)
 
 void FuzzMmsEncodeBuffer(FuzzedDataProvider &fdp)
 {
-    std::string text = MakeString(fdp);
+    std::string text = ConsumeString(fdp);
     uint32_t number = fdp.ConsumeIntegral<uint32_t>();
     uint64_t longNumber = fdp.ConsumeIntegral<uint64_t>();
     MmsEncodeBuffer encodeBuffer;
@@ -186,7 +171,7 @@ void FuzzMmsEncodeBuffer(FuzzedDataProvider &fdp)
 void FuzzContentParam(MmsContentParam &contentParam, FuzzedDataProvider &fdp, const std::string &text)
 {
     uint8_t field = fdp.ConsumeIntegral<uint8_t>();
-    contentParam.SetCharSet(fdp.ConsumeIntegralInRange<uint32_t>(0, CHARSET_MOD));
+    contentParam.SetCharSet(fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CHARSET));
     contentParam.GetCharSet();
     contentParam.SetType(text);
     contentParam.GetType();
@@ -202,7 +187,7 @@ void FuzzContentParam(MmsContentParam &contentParam, FuzzedDataProvider &fdp, co
 
 void FuzzContentType(FuzzedDataProvider &fdp)
 {
-    std::string text = MakeString(fdp);
+    std::string text = ConsumeString(fdp);
     MmsContentParam contentParam;
     FuzzContentParam(contentParam, fdp, text);
     std::string outText;
@@ -214,7 +199,7 @@ void FuzzContentType(FuzzedDataProvider &fdp)
     MmsContentType copyContentType(contentType);
     copyContentType = contentType;
     MmsContentType::GetContentTypeFromString(text);
-    uint8_t wellKnownType = fdp.ConsumeIntegralInRange<uint8_t>(0, WELL_KNOWN_CONTENT_TYPE_MOD);
+    uint8_t wellKnownType = fdp.ConsumeIntegralInRange<uint8_t>(0, MAX_WELL_KNOWN_CONTENT_TYPE);
     MmsContentType::GetContentTypeFromInt(wellKnownType);
 
     int32_t contentLength = 0;
@@ -238,8 +223,8 @@ void FuzzContentType(FuzzedDataProvider &fdp)
 
 void FuzzAddressAndEncodeString(FuzzedDataProvider &fdp)
 {
-    std::string text = MakeString(fdp);
-    MmsCharSets charset = static_cast<MmsCharSets>(fdp.ConsumeIntegralInRange<uint32_t>(0, CHARSET_MOD));
+    std::string text = ConsumeString(fdp);
+    MmsCharSets charset = static_cast<MmsCharSets>(fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CHARSET));
     MmsAddress address(text, charset);
     address.GetAddressString();
     address.GetAddressCharset();
@@ -247,7 +232,7 @@ void FuzzAddressAndEncodeString(FuzzedDataProvider &fdp)
     address.SetMmsAddressString(text, charset);
 
     MmsEncodeString encodeString;
-    encodeString.SetEncodeString(fdp.ConsumeIntegralInRange<uint32_t>(0, CHARSET_MOD), text);
+    encodeString.SetEncodeString(fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CHARSET), text);
     encodeString.SetAddressString(address);
     encodeString.GetStrEncodeString();
     std::string outText;
@@ -334,7 +319,7 @@ void FuzzBodyPartHeader(FuzzedDataProvider &fdp, const std::string &text)
 
 void FuzzAttachmentAndBodyPart(FuzzedDataProvider &fdp)
 {
-    std::string text = MakeString(fdp);
+    std::string text = ConsumeString(fdp);
     uint32_t len = 0;
     MmsAttachment attachment;
     attachment.SetAttachmentFilePath(text, fdp.ConsumeBool());
@@ -344,7 +329,7 @@ void FuzzAttachmentAndBodyPart(FuzzedDataProvider &fdp)
     attachment.SetContentTransferEncoding(text);
     attachment.SetContentType(text);
     attachment.SetFileName(text);
-    attachment.SetCharSet(fdp.ConsumeIntegralInRange<uint32_t>(0, CHARSET_MOD));
+    attachment.SetCharSet(fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CHARSET));
     attachment.SetIsSmilFile(fdp.ConsumeBool());
     auto dataBuffer = MakeBuffer(fdp, len);
     if (dataBuffer != nullptr) {
@@ -391,7 +376,7 @@ void FuzzMmsBodyCodec(FuzzedDataProvider &fdp, MmsHeader &header, const std::str
 
 void FuzzHeaderAndBody(FuzzedDataProvider &fdp)
 {
-    std::string text = MakeString(fdp);
+    std::string text = ConsumeString(fdp);
     uint8_t messageType = MMS_MESSAGE_TYPE_BASE + fdp.ConsumeIntegralInRange<uint8_t>(0, MMS_MESSAGE_TYPE_COUNT);
     uint8_t field = static_cast<uint8_t>((fdp.ConsumeIntegralInRange<uint32_t>(0, FIELD_COUNT) | 0x80));
     uint8_t value = fdp.ConsumeIntegral<uint8_t>();
@@ -400,7 +385,7 @@ void FuzzHeaderAndBody(FuzzedDataProvider &fdp)
     header.SetOctetValue(field, value);
     header.SetLongValue(field, fdp.ConsumeIntegral<int64_t>());
     header.SetTextValue(field, text);
-    header.SetEncodeStringValue(field, fdp.ConsumeIntegralInRange<uint32_t>(0, CHARSET_MOD), text);
+    header.SetEncodeStringValue(field, fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CHARSET), text);
     MmsAddress address(text);
     header.AddHeaderAddressValue(field, address);
     header.GetHeaderContentType().SetContentType(text);
@@ -453,7 +438,7 @@ void FuzzMmsMsgGetAndCodec(FuzzedDataProvider &fdp, MmsMsg &msg, uint8_t field)
 
 void FuzzMmsMsg(FuzzedDataProvider &fdp)
 {
-    std::string text = MakeString(fdp);
+    std::string text = ConsumeString(fdp);
     MmsMsg msg;
     msg.SetMmsVersion(fdp.ConsumeIntegral<uint16_t>());
     msg.SetMmsMessageType(MMS_MESSAGE_TYPE_BASE + fdp.ConsumeIntegralInRange<uint8_t>(0, MMS_MESSAGE_TYPE_COUNT));
@@ -471,7 +456,7 @@ void FuzzMmsMsg(FuzzedDataProvider &fdp)
     msg.SetHeaderIntegerValue(field, fdp.ConsumeIntegral<int32_t>());
     msg.SetHeaderLongValue(field, fdp.ConsumeIntegral<int64_t>());
     msg.SetHeaderStringValue(field, text);
-    msg.SetHeaderEncodedStringValue(field, text, fdp.ConsumeIntegralInRange<uint32_t>(0, CHARSET_MOD));
+    msg.SetHeaderEncodedStringValue(field, text, fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CHARSET));
     msg.AddHeaderAddressValue(field, from);
     msg.GetHeaderAllAddressValue(field, addresses);
     msg.SetHeaderContentType(text);
@@ -490,11 +475,11 @@ void FuzzMmsMsg(FuzzedDataProvider &fdp)
 
 void FuzzUtilityCodecs(FuzzedDataProvider &fdp)
 {
-    std::string text = MakeString(fdp);
+    std::string text = ConsumeString(fdp);
     MmsBase64::Decode(text);
     std::string outText;
     MmsQuotedPrintable::Decode(text, outText);
-    uint32_t charset = fdp.ConsumeIntegralInRange<uint32_t>(0, CHARSET_MOD);
+    uint32_t charset = fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CHARSET);
     std::string charsetText;
     DelayedSingleton<MmsCharSet>::GetInstance()->GetCharSetStrFromInt(charsetText, charset);
     DelayedSingleton<MmsCharSet>::GetInstance()->GetCharSetIntFromString(charset, text);
@@ -503,7 +488,7 @@ void FuzzUtilityCodecs(FuzzedDataProvider &fdp)
 
 void DoMmsCodecFuzzTest(const uint8_t *data, size_t size)
 {
-    if (data == nullptr || size < MIN_SIZE_NUM) {
+    if (data == nullptr || size < MIN_INPUT_SIZE) {
         return;
     }
 
@@ -536,7 +521,6 @@ void DoMmsCodecFuzzTest(const uint8_t *data, size_t size)
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    OHOS::AddSmsTokenFuzzer token;
     OHOS::DoMmsCodecFuzzTest(data, size);
     return 0;
 }

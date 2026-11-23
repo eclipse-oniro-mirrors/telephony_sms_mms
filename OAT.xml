@@ -66,6 +66,9 @@
                             desc="self developed image"/>
                 <filteritem type="filepath" name="figures/zh-cn_architecture-of-the-sms-and-mms-module.png"
                             desc="self developed image"/>
+                <filteritem type="filepath"
+                            name="test/fuzztest/(callbackipc|callbackproxy|mmscodec|smscodecutils|smsinterfacestub|smsservicemanagerclient|smsserviceproxy)_fuzzer/corpus/init"
+                            desc="binary libFuzzer corpus seeds, consumed as raw bytes by libFuzzer"/>
             </filefilter>
 
         </filefilterlist>

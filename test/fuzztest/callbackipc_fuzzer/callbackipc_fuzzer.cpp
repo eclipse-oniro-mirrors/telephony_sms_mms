@@ -18,8 +18,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <fuzzer/FuzzedDataProvider.h>
-#include <string>
-#include <vector>
 
 #include "addsmstoken_fuzzer.h"
 #include "delivery_short_message_callback_ipc_interface_code.h"
@@ -31,51 +29,19 @@
 #include "message_parcel.h"
 #include "send_short_message_callback_ipc_interface_code.h"
 #include "send_short_message_callback_stub.h"
+#include "sms_fuzzer_utils.h"
 
 using namespace OHOS::Telephony;
 namespace OHOS {
+using namespace SmsFuzz;
+
 namespace {
-constexpr size_t MIN_SIZE_NUM = 1;
-constexpr size_t MAX_STRING_SIZE = 256;
-constexpr uint8_t ASCII_PRINTABLE_BASE = 0x20;
-constexpr uint8_t ASCII_PRINTABLE_RANGE = 0x5F;
-constexpr int32_t MAX_SLOT_ID = 2;
-constexpr int32_t INVALID_SLOT_ID = -1;
 constexpr uint32_t UNKNOWN_CODE_OFFSET = 100;
 constexpr uint32_t STUB_SEND_CALLBACK = 0;
 constexpr uint32_t STUB_DELIVERY_CALLBACK = 1;
 constexpr uint32_t STUB_IMS_CALLBACK = 2;
 constexpr uint32_t STUB_FAMILY_COUNT = STUB_IMS_CALLBACK + 1;
 constexpr uint32_t CODE_SELECTOR_RANGE = 2;
-
-std::u16string MakeText(FuzzedDataProvider &fdp)
-{
-    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, MAX_STRING_SIZE);
-    std::vector<uint8_t> raw = fdp.ConsumeBytes<uint8_t>(len);
-    std::u16string text;
-    text.reserve(raw.size());
-    for (uint8_t byte : raw) {
-        text.push_back(static_cast<char16_t>(ASCII_PRINTABLE_BASE + byte % ASCII_PRINTABLE_RANGE));
-    }
-    return text;
-}
-
-std::string MakeString(FuzzedDataProvider &fdp)
-{
-    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, MAX_STRING_SIZE);
-    std::vector<uint8_t> raw = fdp.ConsumeBytes<uint8_t>(len);
-    std::string text;
-    text.reserve(raw.size());
-    for (uint8_t byte : raw) {
-        text.push_back(static_cast<char>(ASCII_PRINTABLE_BASE + byte % ASCII_PRINTABLE_RANGE));
-    }
-    return text;
-}
-
-int32_t MakeSlotId(FuzzedDataProvider &fdp)
-{
-    return fdp.ConsumeIntegralInRange<int32_t>(INVALID_SLOT_ID, MAX_SLOT_ID);
-}
 
 uint32_t MakeCode(uint32_t validCode, FuzzedDataProvider &fdp)
 {
@@ -97,7 +63,7 @@ void CallRemoteRequest(
     if (!withDescriptor) {
         MessageParcel badData;
         badData.WriteInterfaceToken(u"bad.descriptor");
-        badData.WriteInt32(MakeSlotId(fdp));
+        badData.WriteInt32(ConsumeSlotId(fdp));
         stub.OnRemoteRequest(code, badData, reply, option);
         return;
     }
@@ -107,13 +73,13 @@ void CallRemoteRequest(
 void WriteSendResultParcel(MessageParcel &parcel, FuzzedDataProvider &fdp)
 {
     parcel.WriteInt32(fdp.ConsumeIntegral<int32_t>());
-    parcel.WriteString16(MakeText(fdp));
+    parcel.WriteString16(ConsumeText(fdp));
     parcel.WriteInt32(fdp.ConsumeIntegral<int32_t>());
 }
 
 void WriteDeliveryResultParcel(MessageParcel &parcel, FuzzedDataProvider &fdp)
 {
-    parcel.WriteString16(MakeText(fdp));
+    parcel.WriteString16(ConsumeText(fdp));
 }
 
 void FuzzSendCallback(FuzzedDataProvider &fdp)
@@ -149,7 +115,7 @@ void WriteRadioResponseParcel(MessageParcel &parcel, FuzzedDataProvider &fdp)
 void WriteSendSmsResultParcel(MessageParcel &parcel, FuzzedDataProvider &fdp)
 {
     parcel.WriteInt32(fdp.ConsumeIntegral<int32_t>());
-    parcel.WriteString(MakeString(fdp));
+    parcel.WriteString(ConsumeString(fdp));
     parcel.WriteInt32(fdp.ConsumeIntegral<int32_t>());
     parcel.WriteInt64(fdp.ConsumeIntegral<int64_t>());
 }
@@ -160,7 +126,7 @@ void FuzzImsSendCallback(FuzzedDataProvider &fdp)
     uint32_t code = MakeCode(static_cast<uint32_t>(ImsSmsCallbackInterfaceCode::IMS_SEND_MESSAGE), fdp);
     MessageParcel parcel;
     parcel.WriteInterfaceToken(ImsSmsCallbackStub::GetDescriptor());
-    parcel.WriteInt32(MakeSlotId(fdp));
+    parcel.WriteInt32(ConsumeSlotId(fdp));
     if (fdp.ConsumeBool()) {
         WriteRadioResponseParcel(parcel, fdp);
     } else {
@@ -175,14 +141,14 @@ void FuzzImsConfigCallback(FuzzedDataProvider &fdp)
     uint32_t setCode = MakeCode(static_cast<uint32_t>(ImsSmsCallbackInterfaceCode::IMS_SET_SMS_CONFIG), fdp);
     MessageParcel setParcel;
     setParcel.WriteInterfaceToken(ImsSmsCallbackStub::GetDescriptor());
-    setParcel.WriteInt32(MakeSlotId(fdp));
+    setParcel.WriteInt32(ConsumeSlotId(fdp));
     WriteRadioResponseParcel(setParcel, fdp);
     CallRemoteRequest(stub, setCode, setParcel, fdp, true);
 
     uint32_t getCode = MakeCode(static_cast<uint32_t>(ImsSmsCallbackInterfaceCode::IMS_GET_SMS_CONFIG), fdp);
     MessageParcel getParcel;
     getParcel.WriteInterfaceToken(ImsSmsCallbackStub::GetDescriptor());
-    getParcel.WriteInt32(MakeSlotId(fdp));
+    getParcel.WriteInt32(ConsumeSlotId(fdp));
     getParcel.WriteInt32(fdp.ConsumeIntegral<int32_t>());
     CallRemoteRequest(stub, getCode, getParcel, fdp, fdp.ConsumeBool());
 }
@@ -190,7 +156,7 @@ void FuzzImsConfigCallback(FuzzedDataProvider &fdp)
 
 void DoCallbackIpcFuzzTest(const uint8_t *data, size_t size)
 {
-    if (data == nullptr || size < MIN_SIZE_NUM) {
+    if (data == nullptr || size < MIN_INPUT_SIZE) {
         return;
     }
 

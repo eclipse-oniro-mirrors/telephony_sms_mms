@@ -18,13 +18,16 @@
 #include <cstddef>
 #include <cstdint>
 #include <fuzzer/FuzzedDataProvider.h>
-#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
 
+#include "sms_fuzzer_reply_remote.h"
+#include "sms_fuzzer_utils.h"
+
+#define private public
+
 #include "addsmstoken_fuzzer.h"
-#include "delivery_short_message_callback_stub.h"
 #include "i_sms_service_interface.h"
 #include "iremote_object.h"
 #include "message_option.h"
@@ -38,170 +41,14 @@
 
 using namespace OHOS::Telephony;
 namespace OHOS {
+using namespace SmsFuzz;
+
 namespace {
-constexpr size_t MIN_SIZE_NUM = 1;
-constexpr size_t MAX_STRING_SIZE = 256;
-constexpr size_t MAX_DATA_SIZE = 256;
-constexpr uint8_t ASCII_PRINTABLE_BASE = 0x20;
-constexpr uint8_t ASCII_PRINTABLE_RANGE = 0x5F;
-constexpr int32_t MAX_SLOT_ID = 2;
-constexpr int32_t INVALID_SLOT_ID = -1;
-constexpr uint32_t MAX_SIM_STATUS = 8;
-constexpr uint32_t MAX_CHARSET = 0x800;
-constexpr uint32_t CHARSET_BASE = 0x3A;
-constexpr uint32_t RESULT_ERROR_MOD = 4;
-constexpr int32_t MAX_LIST_COUNT = 4;
-constexpr int32_t MAX_SEGMENT_COUNT = 8;
 constexpr uint32_t GROUP_SEND_MESSAGE = 0;
 constexpr uint32_t GROUP_SIM = 1;
 constexpr uint32_t GROUP_QUERY = 2;
 constexpr uint32_t GROUP_CODEC = 3;
 constexpr uint32_t GROUP_COUNT = GROUP_CODEC + 1;
-constexpr int32_t REPLY_RESULT_SUCCESS = 0;
-constexpr int32_t REPLY_RESULT_FAILURE = -1;
-constexpr int32_t REMOTE_CALL_SUCCESS = 0;
-
-std::u16string MakeText(FuzzedDataProvider &fdp)
-{
-    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, MAX_STRING_SIZE);
-    std::vector<uint8_t> raw = fdp.ConsumeBytes<uint8_t>(len);
-    std::u16string text;
-    text.reserve(raw.size());
-    for (uint8_t byte : raw) {
-        text.push_back(static_cast<char16_t>(ASCII_PRINTABLE_BASE + byte % ASCII_PRINTABLE_RANGE));
-    }
-    return text;
-}
-
-std::string MakeString(FuzzedDataProvider &fdp)
-{
-    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, MAX_STRING_SIZE);
-    std::vector<uint8_t> raw = fdp.ConsumeBytes<uint8_t>(len);
-    std::string text;
-    text.reserve(raw.size());
-    for (uint8_t byte : raw) {
-        text.push_back(static_cast<char>(ASCII_PRINTABLE_BASE + byte % ASCII_PRINTABLE_RANGE));
-    }
-    return text;
-}
-
-class ClientReplyRemote final : public IRemoteObject {
-public:
-    explicit ClientReplyRemote(FuzzedDataProvider &fdp) : IRemoteObject(u""), fdp_(fdp) {}
-
-    int32_t GetObjectRefCount() override
-    {
-        return 1;
-    }
-
-    bool AddDeathRecipient(const sptr<DeathRecipient> &recipient) override
-    {
-        return true;
-    }
-
-    bool RemoveDeathRecipient(const sptr<DeathRecipient> &recipient) override
-    {
-        return true;
-    }
-
-    int SendRequest(uint32_t code, MessageParcel &data, MessageParcel &reply, MessageOption &option) override
-    {
-        FillReply(static_cast<SmsServiceInterfaceCode>(code), reply);
-        return REMOTE_CALL_SUCCESS;
-    }
-
-    int Dump(int fd, const std::vector<std::u16string> &args) override
-    {
-        return REMOTE_CALL_SUCCESS;
-    }
-
-private:
-    void FillStringReply(MessageParcel &reply)
-    {
-        int32_t result = MakeResult();
-        reply.WriteInt32(result);
-        if (result == REPLY_RESULT_SUCCESS) {
-            reply.WriteString16(MakeText(fdp_));
-        }
-    }
-
-    void WriteShortMessage(MessageParcel &reply)
-    {
-        ShortMessage message;
-        message.visibleMessageBody_ = MakeText(fdp_);
-        message.visibleRawAddress_ = MakeText(fdp_);
-        message.scAddress_ = MakeText(fdp_);
-        message.scTimestamp_ = fdp_.ConsumeIntegral<int64_t>();
-        message.status_ = fdp_.ConsumeIntegral<int32_t>();
-        message.Marshalling(reply);
-    }
-
-    void FillListReply(SmsServiceInterfaceCode code, MessageParcel &reply)
-    {
-        int32_t count = fdp_.ConsumeIntegralInRange<int32_t>(0, MAX_LIST_COUNT);
-        reply.WriteInt32(REPLY_RESULT_SUCCESS);
-        reply.WriteInt32(count);
-        for (int32_t index = 0; index < count; ++index) {
-            if (code == SmsServiceInterfaceCode::GET_ALL_SIM_MESSAGE) {
-                WriteShortMessage(reply);
-            } else {
-                reply.WriteString16(MakeText(fdp_));
-            }
-        }
-    }
-
-    void FillSegmentsReply(MessageParcel &reply)
-    {
-        reply.WriteInt32(REPLY_RESULT_SUCCESS);
-        for (int32_t index = 0; index < MAX_LIST_COUNT; ++index) {
-            reply.WriteInt32(fdp_.ConsumeIntegralInRange<int32_t>(0, MAX_SEGMENT_COUNT));
-        }
-    }
-
-    void FillShortMessageReply(MessageParcel &reply)
-    {
-        reply.WriteInt32(MakeResult());
-        WriteShortMessage(reply);
-    }
-
-    void FillReply(SmsServiceInterfaceCode code, MessageParcel &reply)
-    {
-        switch (code) {
-            case SmsServiceInterfaceCode::GET_SMSC_ADDRESS:
-            case SmsServiceInterfaceCode::GET_IMS_SHORT_MESSAGE_FORMAT:
-                FillStringReply(reply);
-                break;
-            case SmsServiceInterfaceCode::GET_ALL_SIM_MESSAGE:
-            case SmsServiceInterfaceCode::SPLIT_MESSAGE:
-                FillListReply(code, reply);
-                break;
-            case SmsServiceInterfaceCode::GET_SMS_SEGMENTS_INFO:
-                FillSegmentsReply(reply);
-                break;
-            case SmsServiceInterfaceCode::CREATE_MESSAGE:
-                FillShortMessageReply(reply);
-                break;
-            default:
-                reply.WriteInt32(MakeResult());
-                break;
-        }
-    }
-
-    int32_t MakeResult()
-    {
-        if (fdp_.ConsumeIntegralInRange<uint32_t>(0, RESULT_ERROR_MOD) == 0) {
-            return REPLY_RESULT_FAILURE;
-        }
-        return REPLY_RESULT_SUCCESS;
-    }
-
-    FuzzedDataProvider &fdp_;
-};
-
-int32_t MakeSlotId(FuzzedDataProvider &fdp)
-{
-    return fdp.ConsumeIntegralInRange<int32_t>(INVALID_SLOT_ID, MAX_SLOT_ID);
-}
 
 sptr<ISendShortMessageCallback> MakeSendCallback(FuzzedDataProvider &fdp)
 {
@@ -221,10 +68,10 @@ sptr<IDeliveryShortMessageCallback> MakeDeliveryCallback(FuzzedDataProvider &fdp
 
 void FuzzClientSendMessage(SmsServiceManagerClient &client, FuzzedDataProvider &fdp)
 {
-    int32_t slotId = MakeSlotId(fdp);
-    std::u16string desAddr = MakeText(fdp);
-    std::u16string scAddr = MakeText(fdp);
-    std::u16string text = MakeText(fdp);
+    int32_t slotId = ConsumeSlotId(fdp);
+    std::u16string desAddr = ConsumeText(fdp);
+    std::u16string scAddr = ConsumeText(fdp);
+    std::u16string text = ConsumeText(fdp);
     sptr<ISendShortMessageCallback> sendCallback = MakeSendCallback(fdp);
     sptr<IDeliveryShortMessageCallback> deliveryCallback = MakeDeliveryCallback(fdp);
     client.SendMessage(slotId, desAddr, scAddr, text, sendCallback, deliveryCallback);
@@ -238,9 +85,9 @@ void FuzzClientSendMessage(SmsServiceManagerClient &client, FuzzedDataProvider &
 
 void FuzzClientSimMessage(SmsServiceManagerClient &client, FuzzedDataProvider &fdp)
 {
-    int32_t slotId = MakeSlotId(fdp);
-    std::u16string smsc = MakeText(fdp);
-    std::u16string pdu = MakeText(fdp);
+    int32_t slotId = ConsumeSlotId(fdp);
+    std::u16string smsc = ConsumeText(fdp);
+    std::u16string pdu = ConsumeText(fdp);
     uint32_t msgIndex = fdp.ConsumeIntegral<uint32_t>();
     uint32_t status = fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_SIM_STATUS);
     client.SetScAddress(slotId, smsc);
@@ -251,7 +98,7 @@ void FuzzClientSimMessage(SmsServiceManagerClient &client, FuzzedDataProvider &f
 
 void FuzzClientSimConfig(SmsServiceManagerClient &client, FuzzedDataProvider &fdp)
 {
-    int32_t slotId = MakeSlotId(fdp);
+    int32_t slotId = ConsumeSlotId(fdp);
     std::vector<int32_t> messageIds;
     int32_t listSize = fdp.ConsumeIntegralInRange<int32_t>(0, MAX_LIST_COUNT);
     for (int32_t index = 0; index < listSize; ++index) {
@@ -266,8 +113,8 @@ void FuzzClientSimConfig(SmsServiceManagerClient &client, FuzzedDataProvider &fd
 
 void FuzzClientQuery(SmsServiceManagerClient &client, FuzzedDataProvider &fdp)
 {
-    int32_t slotId = MakeSlotId(fdp);
-    std::u16string text = MakeText(fdp);
+    int32_t slotId = ConsumeSlotId(fdp);
+    std::u16string text = ConsumeText(fdp);
     client.GetDefaultSmsSlotId();
     int32_t simId = 0;
     client.GetDefaultSmsSimId(simId);
@@ -286,53 +133,39 @@ void FuzzClientQuery(SmsServiceManagerClient &client, FuzzedDataProvider &fdp)
 
 void FuzzClientStatusQuery(SmsServiceManagerClient &client, FuzzedDataProvider &fdp)
 {
-    int32_t slotId = MakeSlotId(fdp);
+    int32_t slotId = ConsumeSlotId(fdp);
     int32_t shortCodeType = 0;
-    client.GetSmsShortCodeType(slotId, MakeString(fdp), shortCodeType);
+    client.GetSmsShortCodeType(slotId, ConsumeString(fdp), shortCodeType);
     bool isSupported = false;
     client.IsImsSmsSupported(slotId, isSupported);
 }
 
 void FuzzClientCodec(SmsServiceManagerClient &client, FuzzedDataProvider &fdp)
 {
-    std::string pdu = MakeString(fdp);
+    std::string pdu = ConsumeString(fdp);
     ShortMessage message;
-    client.CreateMessage(pdu, MakeString(fdp), message);
+    client.CreateMessage(pdu, ConsumeString(fdp), message);
     std::string dest;
     client.GetBase64Encode(pdu, dest);
     client.GetBase64Decode(pdu, dest);
     std::string encodeString;
-    uint32_t charset = CHARSET_BASE + fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CHARSET);
-    client.GetEncodeStringFunc(encodeString, charset, static_cast<uint32_t>(pdu.size()), pdu);
+    client.GetEncodeStringFunc(encodeString, ConsumeCharset(fdp), static_cast<uint32_t>(pdu.size()), pdu);
 }
 
 void FuzzClientMms(SmsServiceManagerClient &client, FuzzedDataProvider &fdp)
 {
-    int32_t slotId = MakeSlotId(fdp);
-    std::u16string mmsc = MakeText(fdp);
-    std::u16string mmsData = MakeText(fdp);
-    std::u16string ua = MakeText(fdp);
-    std::u16string uaprof = MakeText(fdp);
+    int32_t slotId = ConsumeSlotId(fdp);
+    std::u16string mmsc = ConsumeText(fdp);
+    std::u16string mmsData = ConsumeText(fdp);
+    std::u16string ua = ConsumeText(fdp);
+    std::u16string uaprof = ConsumeText(fdp);
     int64_t time = fdp.ConsumeIntegral<int64_t>();
     client.SendMms(slotId, mmsc, mmsData, ua, uaprof, time);
     client.DownloadMms(slotId, mmsc, mmsData, ua, uaprof);
 }
-} // namespace
 
-void DoSmsServiceManagerClientFuzzTest(const uint8_t *data, size_t size)
+void FuzzClientGroups(SmsServiceManagerClient &client, FuzzedDataProvider &fdp)
 {
-    if (data == nullptr || size < MIN_SIZE_NUM) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
-    sptr<IRemoteObject> remoteObject = new ClientReplyRemote(fdp);
-    SmsServiceManagerClient &client = Singleton<SmsServiceManagerClient>::GetInstance();
-    client.smsServiceInterface_ = new SmsServiceProxy(remoteObject);
-    if (client.smsServiceInterface_ == nullptr) {
-        return;
-    }
-
     switch (fdp.ConsumeIntegralInRange<uint32_t>(GROUP_SEND_MESSAGE, GROUP_COUNT - 1)) {
         case GROUP_SEND_MESSAGE:
             FuzzClientSendMessage(client, fdp);
@@ -349,6 +182,29 @@ void DoSmsServiceManagerClientFuzzTest(const uint8_t *data, size_t size)
             FuzzClientCodec(client, fdp);
             FuzzClientMms(client, fdp);
             break;
+    }
+}
+} // namespace
+
+void DoSmsServiceManagerClientFuzzTest(const uint8_t *data, size_t size)
+{
+    if (data == nullptr || size < MIN_INPUT_SIZE) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    sptr<IRemoteObject> remoteObject = new SmsServiceReplyRemote(fdp);
+    SmsServiceManagerClient &client = Singleton<SmsServiceManagerClient>::GetInstance();
+    {
+        std::lock_guard<std::mutex> lock(client.mutex_);
+        client.smsServiceInterface_ = new SmsServiceProxy(remoteObject);
+    }
+    FuzzClientGroups(client, fdp);
+    {
+        // The mock holds a reference to the stack fdp, so the interface must be released before
+        // this iteration returns; otherwise the singleton keeps a dangling reference.
+        std::lock_guard<std::mutex> lock(client.mutex_);
+        client.smsServiceInterface_ = nullptr;
     }
 }
 } // namespace OHOS

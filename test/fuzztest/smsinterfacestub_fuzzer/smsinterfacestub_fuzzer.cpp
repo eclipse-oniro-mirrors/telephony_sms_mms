@@ -18,13 +18,15 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <fuzzer/FuzzedDataProvider.h>
-#include <map>
-#include <memory>
-#include <mutex>
-#include <string>
 #include <thread>
+#include <unistd.h>
 #include <vector>
+
+#include "sms_fuzzer_utils.h"
+
+#define private public
 
 #include "addsmstoken_fuzzer.h"
 #include "core_manager_inner.h"
@@ -39,16 +41,10 @@
 
 using namespace OHOS::Telephony;
 namespace OHOS {
+using namespace SmsFuzz;
+
 namespace {
-constexpr size_t MIN_SIZE_NUM = 1;
-constexpr size_t MAX_STRING_SIZE = 256;
-constexpr size_t MAX_DATA_SIZE = 256;
-constexpr uint8_t ASCII_PRINTABLE_BASE = 0x20;
-constexpr uint8_t ASCII_PRINTABLE_RANGE = 0x5F;
-constexpr int32_t MAX_SLOT_ID = 2;
-constexpr int32_t INVALID_SLOT_ID = -1;
 constexpr int32_t MAX_CB_LIST_SIZE = 16;
-constexpr uint32_t MAX_SIM_STATUS = 8;
 constexpr uint32_t UNKNOWN_CODE_OFFSET = 1000;
 constexpr uint32_t CODE_MAX = static_cast<uint32_t>(SmsServiceInterfaceCode::GET_SMS_SHORT_CODE_TYPE) + 1;
 constexpr uint8_t SPECIFICATION_SELECTOR_RANGE = 2;
@@ -56,6 +52,7 @@ constexpr int32_t INIT_WAIT_TIMES = 200;
 constexpr auto INIT_WAIT_INTERVAL = std::chrono::milliseconds(1);
 
 static bool g_isInited = false;
+static bool g_initTried = false;
 
 bool WaitInterfaceManagerReady(SmsService &service)
 {
@@ -68,52 +65,36 @@ bool WaitInterfaceManagerReady(SmsService &service)
     return false;
 }
 
+// The whole process initialises the service at most once: a failed attempt must not be retried on
+// every input, otherwise each iteration would re-run OnStart() and wait up to 200 ms again.
 bool IsServiceInited()
 {
-    if (!g_isInited) {
-        CoreManagerInner::GetInstance().isInitAllObj_ = true;
-        auto service = DelayedSingleton<SmsService>::GetInstance();
-        if (service == nullptr) {
-            return false;
-        }
-        service->registerToService_ = true;
-        service->WaitCoreServiceToInit();
-        service->OnStart();
-        if (service->GetServiceRunningState() != static_cast<int32_t>(ServiceRunningState::STATE_RUNNING)) {
-            return false;
-        }
-        g_isInited = WaitInterfaceManagerReady(*service);
+    if (g_isInited) {
+        return true;
     }
-    return g_isInited;
-}
-
-std::u16string MakeText(FuzzedDataProvider &fdp)
-{
-    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, MAX_STRING_SIZE);
-    std::vector<uint8_t> raw = fdp.ConsumeBytes<uint8_t>(len);
-    std::u16string text;
-    text.reserve(raw.size());
-    for (uint8_t byte : raw) {
-        text.push_back(static_cast<char16_t>(ASCII_PRINTABLE_BASE + byte % ASCII_PRINTABLE_RANGE));
+    if (g_initTried) {
+        return false;
     }
-    return text;
-}
+    g_initTried = true;
 
-std::string MakeString(FuzzedDataProvider &fdp)
-{
-    size_t len = fdp.ConsumeIntegralInRange<size_t>(0, MAX_STRING_SIZE);
-    std::vector<uint8_t> raw = fdp.ConsumeBytes<uint8_t>(len);
-    std::string text;
-    text.reserve(raw.size());
-    for (uint8_t byte : raw) {
-        text.push_back(static_cast<char>(ASCII_PRINTABLE_BASE + byte % ASCII_PRINTABLE_RANGE));
+    CoreManagerInner::GetInstance().isInitAllObj_ = true;
+    auto service = DelayedSingleton<SmsService>::GetInstance();
+    if (service == nullptr) {
+        return false;
     }
-    return text;
-}
-
-int32_t MakeSlotId(FuzzedDataProvider &fdp)
-{
-    return fdp.ConsumeIntegralInRange<int32_t>(INVALID_SLOT_ID, MAX_SLOT_ID);
+    service->registerToService_ = true;
+    service->WaitCoreServiceToInit();
+    service->OnStart();
+    if (service->GetServiceRunningState() != static_cast<int32_t>(ServiceRunningState::STATE_RUNNING) ||
+        !WaitInterfaceManagerReady(*service)) {
+        return false;
+    }
+    g_isInited = true;
+    atexit([] {
+        DelayedSingleton<SmsService>::GetInstance()->OnStop();
+        _exit(0);
+    });
+    return true;
 }
 
 std::string MakeBundleName(FuzzedDataProvider &fdp)
@@ -121,7 +102,7 @@ std::string MakeBundleName(FuzzedDataProvider &fdp)
     if (fdp.ConsumeBool()) {
         return std::string("com.ohos.mms");
     }
-    return MakeString(fdp);
+    return ConsumeString(fdp);
 }
 
 std::string MakeSpecification(FuzzedDataProvider &fdp)
@@ -133,7 +114,7 @@ std::string MakeSpecification(FuzzedDataProvider &fdp)
     if (type == 1) {
         return std::string("3gpp2");
     }
-    return MakeString(fdp);
+    return ConsumeString(fdp);
 }
 
 void WriteCallbacks(MessageParcel &parcel, FuzzedDataProvider &fdp)
@@ -152,9 +133,9 @@ void WriteCallbacks(MessageParcel &parcel, FuzzedDataProvider &fdp)
 
 void WriteTextBody(MessageParcel &parcel, SmsServiceInterfaceCode code, FuzzedDataProvider &fdp)
 {
-    int32_t slotId = MakeSlotId(fdp);
-    std::u16string desAddr = MakeText(fdp);
-    std::u16string scAddr = MakeText(fdp);
+    int32_t slotId = ConsumeSlotId(fdp);
+    std::u16string desAddr = ConsumeText(fdp);
+    std::u16string scAddr = ConsumeText(fdp);
     parcel.WriteInt32(slotId);
     parcel.WriteString16(desAddr);
     parcel.WriteString16(scAddr);
@@ -169,21 +150,21 @@ void WriteTextBody(MessageParcel &parcel, SmsServiceInterfaceCode code, FuzzedDa
         }
         return;
     }
-    parcel.WriteString16(MakeText(fdp));
+    parcel.WriteString16(ConsumeText(fdp));
     WriteCallbacks(parcel, fdp);
     parcel.WriteString(MakeBundleName(fdp));
 }
 
 void WriteSimBody(MessageParcel &parcel, SmsServiceInterfaceCode code, FuzzedDataProvider &fdp)
 {
-    parcel.WriteInt32(MakeSlotId(fdp));
+    parcel.WriteInt32(ConsumeSlotId(fdp));
     switch (code) {
         case SmsServiceInterfaceCode::SET_SMSC_ADDRESS:
-            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
             break;
         case SmsServiceInterfaceCode::ADD_SIM_MESSAGE:
-            parcel.WriteString16(MakeText(fdp));
-            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
             parcel.WriteUint32(fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_SIM_STATUS));
             break;
         case SmsServiceInterfaceCode::DEL_SIM_MESSAGE:
@@ -192,8 +173,8 @@ void WriteSimBody(MessageParcel &parcel, SmsServiceInterfaceCode code, FuzzedDat
         case SmsServiceInterfaceCode::UPDATE_SIM_MESSAGE:
             parcel.WriteUint32(fdp.ConsumeIntegral<uint32_t>());
             parcel.WriteUint32(fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_SIM_STATUS));
-            parcel.WriteString16(MakeText(fdp));
-            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
             break;
         default:
             break;
@@ -214,19 +195,19 @@ void WriteConfigBody(MessageParcel &parcel, SmsServiceInterfaceCode code, Fuzzed
 {
     switch (code) {
         case SmsServiceInterfaceCode::SET_CB_CONFIG:
-            parcel.WriteInt32(MakeSlotId(fdp));
+            parcel.WriteInt32(ConsumeSlotId(fdp));
             parcel.WriteBool(fdp.ConsumeBool());
             parcel.WriteUint32(fdp.ConsumeIntegral<uint32_t>());
             parcel.WriteUint32(fdp.ConsumeIntegral<uint32_t>());
             parcel.WriteUint8(fdp.ConsumeIntegral<uint8_t>());
             break;
         case SmsServiceInterfaceCode::SET_CB_CONFIG_LIST:
-            parcel.WriteInt32(MakeSlotId(fdp));
+            parcel.WriteInt32(ConsumeSlotId(fdp));
             WriteCbConfigList(parcel, fdp);
             break;
         case SmsServiceInterfaceCode::SET_IMS_SMS_CONFIG:
         case SmsServiceInterfaceCode::SET_DEFAULT_SMS_SLOT_ID:
-            parcel.WriteInt32(MakeSlotId(fdp));
+            parcel.WriteInt32(ConsumeSlotId(fdp));
             parcel.WriteInt32(fdp.ConsumeIntegral<int32_t>());
             break;
         default:
@@ -238,19 +219,19 @@ void WriteQueryBody(MessageParcel &parcel, SmsServiceInterfaceCode code, FuzzedD
 {
     switch (code) {
         case SmsServiceInterfaceCode::SPLIT_MESSAGE:
-            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
             break;
         case SmsServiceInterfaceCode::GET_SMS_SEGMENTS_INFO:
-            parcel.WriteInt32(MakeSlotId(fdp));
-            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteInt32(ConsumeSlotId(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
             parcel.WriteBool(fdp.ConsumeBool());
             break;
         case SmsServiceInterfaceCode::GET_SMS_SHORT_CODE_TYPE:
-            parcel.WriteInt32(MakeSlotId(fdp));
-            parcel.WriteString(MakeString(fdp));
+            parcel.WriteInt32(ConsumeSlotId(fdp));
+            parcel.WriteString(ConsumeString(fdp));
             break;
         case SmsServiceInterfaceCode::IS_IMS_SMS_SUPPORTED:
-            parcel.WriteInt32(MakeSlotId(fdp));
+            parcel.WriteInt32(ConsumeSlotId(fdp));
             break;
         default:
             break;
@@ -261,33 +242,33 @@ void WriteMmsBody(MessageParcel &parcel, SmsServiceInterfaceCode code, FuzzedDat
 {
     switch (code) {
         case SmsServiceInterfaceCode::SEND_MMS:
-            parcel.WriteInt32(MakeSlotId(fdp));
-            parcel.WriteString16(MakeText(fdp));
-            parcel.WriteString16(MakeText(fdp));
-            parcel.WriteString16(MakeText(fdp));
-            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteInt32(ConsumeSlotId(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
             parcel.WriteInt64(fdp.ConsumeIntegral<int64_t>());
             parcel.WriteString(MakeBundleName(fdp));
             break;
         case SmsServiceInterfaceCode::DOWNLOAD_MMS:
-            parcel.WriteInt32(MakeSlotId(fdp));
-            parcel.WriteString16(MakeText(fdp));
-            parcel.WriteString16(MakeText(fdp));
-            parcel.WriteString16(MakeText(fdp));
-            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteInt32(ConsumeSlotId(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
             break;
         case SmsServiceInterfaceCode::CREATE_MESSAGE:
-            parcel.WriteString(MakeString(fdp));
+            parcel.WriteString(ConsumeString(fdp));
             parcel.WriteString(MakeSpecification(fdp));
             break;
         case SmsServiceInterfaceCode::MMS_BASE64_ENCODE:
         case SmsServiceInterfaceCode::MMS_BASE64_DECODE:
-            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
             break;
         case SmsServiceInterfaceCode::GET_ENCODE_STRING:
             parcel.WriteUint32(fdp.ConsumeIntegral<uint32_t>());
             parcel.WriteUint32(fdp.ConsumeIntegral<uint32_t>());
-            parcel.WriteString16(MakeText(fdp));
+            parcel.WriteString16(ConsumeText(fdp));
             break;
         default:
             break;
@@ -318,7 +299,7 @@ void WriteParcelBody(MessageParcel &parcel, SmsServiceInterfaceCode code, Fuzzed
 
 void DoSmsInterfaceStubFuzzTest(const uint8_t *data, size_t size)
 {
-    if (data == nullptr || size < MIN_SIZE_NUM || !IsServiceInited()) {
+    if (data == nullptr || size < MIN_INPUT_SIZE || !IsServiceInited()) {
         return;
     }
     auto service = DelayedSingleton<SmsService>::GetInstance();

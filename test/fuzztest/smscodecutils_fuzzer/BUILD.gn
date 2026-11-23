@@ -78,7 +78,6 @@ ohos_fuzztest("SmsCodecUtilsFuzzTest") {
   ]
 
   sources = [
-    "$SMS_MMS_SOURCE_DIR/test/fuzztest/common_fuzzer/addsmstoken_fuzzer.cpp",
     "smscodecutils_fuzzer.cpp",
   ]
 }

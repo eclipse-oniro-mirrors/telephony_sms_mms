@@ -16,7 +16,7 @@
 <fuzz_config>
   <fuzztest>
     <max_len>512</max_len>
-    <max_total_time>1</max_total_time>
+    <max_total_time>300</max_total_time>
     <rss_limit_mb>4096</rss_limit_mb>
   </fuzztest>
 </fuzz_config>
