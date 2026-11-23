@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "addsmstoken_fuzzer.h"
+#include "delivery_short_message_callback_stub.h"
 #include "i_sms_service_interface.h"
 #include "iremote_object.h"
 #include "message_option.h"
