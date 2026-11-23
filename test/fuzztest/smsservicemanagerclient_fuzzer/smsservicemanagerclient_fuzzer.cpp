@@ -25,8 +25,6 @@
 #include "sms_fuzzer_reply_remote.h"
 #include "sms_fuzzer_utils.h"
 
-#define private public
-
 #include "addsmstoken_fuzzer.h"
 #include "i_sms_service_interface.h"
 #include "iremote_object.h"

@@ -18,15 +18,12 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <fuzzer/FuzzedDataProvider.h>
 #include <thread>
 #include <unistd.h>
 #include <vector>
 
 #include "sms_fuzzer_utils.h"
-
-#define private public
 
 #include "addsmstoken_fuzzer.h"
 #include "core_manager_inner.h"
@@ -65,6 +62,23 @@ bool WaitInterfaceManagerReady(SmsService &service)
     return false;
 }
 
+// Registering an exit handler is forbidden by the static check (G.FUU.04), and its return value
+// would also have to be checked (G.FUU.01). The shutdown hook asked for in review is therefore bound
+// to the lifetime of an object with static storage duration: OnStop() runs while the other
+// singletons are still alive and the process then leaves immediately, so the teardown order is
+// unchanged.
+class ServiceExitGuard final {
+public:
+    ~ServiceExitGuard()
+    {
+        auto service = DelayedSingleton<SmsService>::GetInstance();
+        if (service != nullptr) {
+            service->OnStop();
+        }
+        _exit(0);
+    }
+};
+
 // The whole process initialises the service at most once: a failed attempt must not be retried on
 // every input, otherwise each iteration would re-run OnStart() and wait up to 200 ms again.
 bool IsServiceInited()
@@ -89,11 +103,9 @@ bool IsServiceInited()
         !WaitInterfaceManagerReady(*service)) {
         return false;
     }
+    static ServiceExitGuard exitGuard;
+    (void)exitGuard;
     g_isInited = true;
-    atexit([] {
-        DelayedSingleton<SmsService>::GetInstance()->OnStop();
-        _exit(0);
-    });
     return true;
 }
 

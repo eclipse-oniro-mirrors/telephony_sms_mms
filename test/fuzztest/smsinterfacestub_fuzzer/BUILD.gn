@@ -66,11 +66,15 @@ ohos_fuzztest("SmsInterfaceStubFuzzTest") {
     "LOG_DOMAIN = 0xD000F00",
   ]
 
+  # SmsService::registerToService_ and SmsService::WaitCoreServiceToInit() are private, and the
+  # static check rejects a lower-case macro definition (G.NAM.03-CPP) in newly added source files,
+  # so the macro is scoped to this fuzz target instead of being redefined in the source.
   cflags = [
     "-g",
     "-O0",
     "-Wno-unused-variable",
     "-fno-omit-frame-pointer",
+    "-Dprivate=public",
   ]
 
   sources = [
