@@ -29,8 +29,8 @@ ohos_fuzztest("MmsBodyFuzzTest") {
   ]
 
   deps = [
-    "$SMS_MMS_SOURCE_DIR:tel_sms_mms",
-    "$SMS_MMS_SOURCE_DIR/frameworks/native:tel_sms_mms_api",
+    "$SMS_MMS_SOURCE_DIR/frameworks/native/mms:mms_native_source",
+    "$SMS_MMS_SOURCE_DIR/frameworks/native/sms:sms_native_source",
   ]
 
   external_deps = [
