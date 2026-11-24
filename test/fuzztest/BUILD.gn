@@ -37,7 +37,6 @@ group("fuzztest") {
   deps += [ "setgetcbconfig_fuzzer:fuzztest" ]
   deps += [ "setgetsmsc_fuzzer:fuzztest" ]
   deps += [ "smscodecutils_fuzzer:fuzztest" ]
-  deps += [ "smsinterfacestub_fuzzer:fuzztest" ]
   deps += [ "smsservicemanagerclient_fuzzer:fuzztest" ]
   deps += [ "smsserviceproxy_fuzzer:fuzztest" ]
   deps += [ "smspdubuffer_fuzzer:fuzztest" ]

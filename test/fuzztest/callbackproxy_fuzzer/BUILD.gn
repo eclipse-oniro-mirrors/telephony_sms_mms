@@ -65,6 +65,8 @@ ohos_fuzztest("CallbackProxyFuzzTest") {
   ]
 
   sources = [
+    "$SMS_MMS_SOURCE_DIR/services/sms/proxy/sms_delivery_short_message_proxy.cpp",
+    "$SMS_MMS_SOURCE_DIR/services/sms/proxy/sms_send_short_message_proxy.cpp",
     "callbackproxy_fuzzer.cpp",
   ]
 }

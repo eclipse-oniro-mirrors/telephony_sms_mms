@@ -39,6 +39,7 @@ ohos_fuzztest("SmsCodecUtilsFuzzTest") {
   deps = [
     "$SMS_MMS_SOURCE_DIR:tel_sms_mms",
     "$SMS_MMS_SOURCE_DIR/frameworks/native:tel_sms_mms_api",
+    "$SMS_MMS_SOURCE_DIR/frameworks/native/sms:sms_native_source",
   ]
 
   external_deps = [
@@ -47,6 +48,7 @@ ohos_fuzztest("SmsCodecUtilsFuzzTest") {
     "access_token:libaccesstoken_sdk",
     "access_token:libnativetoken_shared",
     "access_token:libtoken_setproc",
+    "bounds_checking_function:libsec_shared",
     "c_utils:utils",
     "common_event_service:cesfwk_innerkits",
     "core_service:libtel_common",
@@ -78,6 +80,8 @@ ohos_fuzztest("SmsCodecUtilsFuzzTest") {
   ]
 
   sources = [
+    "$SMS_MMS_SOURCE_DIR/utils/sms_common_utils.cpp",
+    "$SMS_MMS_SOURCE_DIR/utils/text_coder.cpp",
     "smscodecutils_fuzzer.cpp",
   ]
 }
