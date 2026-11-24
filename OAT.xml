@@ -34,11 +34,15 @@
                 <!--filteritem type="filepath" name="projectroot/[a-zA-Z0-9]{20,}.sh" desc="Temp files"/-->
             </filefilter>
             <filefilter name="defaultPolicyFilter" desc="Filters for compatibility，license header policies">
+                <filteritem type="filepath" name="test/fuzztest/mmsdecodebuffer_fuzzer/corpus/quoted-text[.]pdu"
+                            desc="Self-authored raw MMS fuzz seed whose bytes must stay unchanged"/>
                 <!--filteritem type="filename" name="*.uvwxyz" desc="Describe the reason for filtering scan results"/-->
                 <!--filteritem type="filepath" name="abcdefg/.*.uvwxyz" desc="Describe the reason for filtering scan results"/-->
                 <!--filteritem type="filepath" name="projectroot/[a-zA-Z0-9]{20,}.sh" desc="Temp files"/-->
             </filefilter>
             <filefilter name="copyrightPolicyFilter" desc="Filters for copyright header policies">
+                <filteritem type="filepath" name="test/fuzztest/mmsdecodebuffer_fuzzer/corpus/quoted-text[.]pdu"
+                            desc="Self-authored raw MMS fuzz seed whose bytes must stay unchanged"/>
                 <!--filteritem type="filename" name="*.uvwxyz" desc="Describe the reason for filtering scan results"/-->
                 <!--filteritem type="filepath" name="abcdefg/.*.uvwxyz" desc="Describe the reason for filtering scan results"/-->
                 <!--filteritem type="filepath" name="projectroot/[a-zA-Z0-9]{20,}.sh" desc="Temp files"/-->
@@ -59,6 +63,57 @@
                 <!--filteritem type="filepath" name="projectroot/[a-zA-Z0-9]{20,}.sh" desc="Temp files"/-->
             </filefilter>
             <filefilter name="binaryFileTypePolicyFilter" desc="Filters for binary file policies">
+                <!-- Self-authored MMS PDU and primitive-input seeds; consumed as raw bytes by libFuzzer. -->
+                <filteritem type="filepath" name="test/fuzztest/mmsaddress_fuzzer/corpus/init"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsattachment_fuzzer/corpus/init"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsattachment_fuzzer/corpus/truncated[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsbody_fuzzer/corpus/init"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsbody_fuzzer/corpus/truncated[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsbodypart_fuzzer/corpus/init"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsbodypart_fuzzer/corpus/truncated[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsbodypartheader_fuzzer/corpus/content-id[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsbodypartheader_fuzzer/corpus/init"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsbodypartheader_fuzzer/corpus/truncated[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmscodecutils_fuzzer/corpus/init"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmscontentparam_fuzzer/corpus/init"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmscontenttype_fuzzer/corpus/init"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsdecodebuffer_fuzzer/corpus/value-length-text[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsdecodebuffer_fuzzer/corpus/quoted-text[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsdecodebuffer_fuzzer/corpus/uintvar-short-int[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsdecodebuffer_fuzzer/corpus/init"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsdecodebuffer_fuzzer/corpus/truncated[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsencodebuffer_fuzzer/corpus/init"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsheader_fuzzer/corpus/init"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsheader_fuzzer/corpus/retrieve-text-plain[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsheader_fuzzer/corpus/truncated[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsmsg_fuzzer/corpus/init"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsmsg_fuzzer/corpus/retrieve-text-plain[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
+                <filteritem type="filepath" name="test/fuzztest/mmsmsg_fuzzer/corpus/truncated[.]pdu"
+                            desc="Self-authored non-executable MMS fuzz corpus; binary format is required"/>
                 <!--filteritem type="filename" name="*.uvwxyz" desc="Describe the reason for filtering scan results"/-->
                 <!--filteritem type="filepath" name="abcdefg/.*.uvwxyz" desc="Describe the reason for filtering scan results"/-->
                 <!--filteritem type="filepath" name="projectroot/[a-zA-Z0-9]{20,}.sh" desc="Temp files"/-->
