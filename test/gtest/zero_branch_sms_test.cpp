@@ -105,7 +105,10 @@ void BranchSmsTest::TearDownTestCase()
 
 void BranchSmsTest::SetUp() {}
 
-void BranchSmsTest::TearDown() {}
+void BranchSmsTest::TearDown()
+{
+    DelayedSingleton<SmsPersistHelper>::DestroyInstance();
+}
 
 /**
  * @tc.number   Telephony_SmsMmsGtest_SmsReceiveHandler_0001

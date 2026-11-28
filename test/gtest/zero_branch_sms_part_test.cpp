@@ -75,7 +75,10 @@ void BranchSmsPartTest::TearDownTestCase()
 
 void BranchSmsPartTest::SetUp() {}
 
-void BranchSmsPartTest::TearDown() {}
+void BranchSmsPartTest::TearDown()
+{
+    DelayedSingleton<SmsPersistHelper>::DestroyInstance();
+}
 
 /**
  * @tc.number   Telephony_SmsMmsGtest_SmsInterfaceStub_0001
@@ -2201,7 +2204,7 @@ HWTEST_F(BranchSmsPartTest, GsmSmsReceiveHandler_0002, Function | MediumTest | L
     EXPECT_CALL(*dataShareHelperMock, Release()).WillRepeatedly(Return(true));
     std::shared_ptr<GsmSmsReceiveHandler> smsReceiveHandler = std::make_shared<GsmSmsReceiveHandler>(0);
     EXPECT_EQ(smsReceiveHandler->HandleNormalSmsByType(baseMessage), AckIncomeCause::SMS_ACK_RESULT_OK);
-    DelayedSingleton<SmsPersistHelper>::GetInstance()->ReleaseDataShareHelper();
+    DelayedSingleton<SmsPersistHelper>::GetInstance()->smsDataShareHelper_ = nullptr;
 }
 
 namespace {
@@ -2310,7 +2313,7 @@ HWTEST_F(BranchSmsPartTest, GsmSmsReceiveHandler_0004, Function | MediumTest | L
     // Type 0 and port 5499: both return before any database access, neither is stored nor combined
     smsReceiveHandler->HandleRemainDataShare(typeZeroMessage);
     smsReceiveHandler->HandleRemainDataShare(invalidPortMessage);
-    DelayedSingleton<SmsPersistHelper>::GetInstance()->ReleaseDataShareHelper();
+    DelayedSingleton<SmsPersistHelper>::GetInstance()->smsDataShareHelper_ = nullptr;
 }
 } // namespace Telephony
 } // namespace OHOS

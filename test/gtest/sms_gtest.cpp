@@ -71,7 +71,10 @@ void SmsGtest::TearDownTestCase()
 
 void SmsGtest::SetUp() {}
 
-void SmsGtest::TearDown() {}
+void SmsGtest::TearDown()
+{
+    DelayedSingleton<SmsPersistHelper>::DestroyInstance();
+}
 
 auto smsReceiveHandler = std::make_shared<GsmSmsReceiveHandler>(0);
 const int32_t DEFAULT_SIM_SLOT_ID_1 = 1;

@@ -69,7 +69,10 @@ void SmsServicesMmsGtest::TearDownTestCase()
 
 void SmsServicesMmsGtest::SetUp() {}
 
-void SmsServicesMmsGtest::TearDown() {}
+void SmsServicesMmsGtest::TearDown()
+{
+    DelayedSingleton<SmsPersistHelper>::DestroyInstance();
+}
 
 void SmsServicesMmsGtest::SetUpTestCase() {}
 

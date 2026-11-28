@@ -100,7 +100,11 @@ void BranchMmsTest::TearDownTestCase()
 
 void BranchMmsTest::SetUp() {}
 
-void BranchMmsTest::TearDown() {}
+void BranchMmsTest::TearDown()
+{
+    DelayedSingleton<SmsPersistHelper>::DestroyInstance();
+    DelayedSingleton<MmsPersistHelper>::DestroyInstance();
+}
 
 /**
  * @tc.number   Telephony_SmsMmsGtest_MmsHeader_0001
