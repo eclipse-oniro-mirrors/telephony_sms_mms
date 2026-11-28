@@ -66,7 +66,10 @@ void CdmaSmsGtest::TearDownTestCase()
 
 void CdmaSmsGtest::SetUp() {}
 
-void CdmaSmsGtest::TearDown() {}
+void CdmaSmsGtest::TearDown()
+{
+    DelayedSingleton<SmsPersistHelper>::DestroyInstance();
+}
 
 const int32_t DEFAULT_SIM_SLOT_ID_1 = 1;
 const uint8_t HEX_CHAR_LEN = 2;
